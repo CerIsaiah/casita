@@ -3,9 +3,10 @@
 Casita is used in a junior-engineer interview loop. There is no curated
 good-first-issue list on purpose.
 
-Pick something you think makes Casita better: a fix, a test, a refactor, a
-feature, docs, polish, or a simplification. In your pull request description,
-tell us why you chose it. The choice is part of the signal.
+Fork the repo and make it your own. Pick something you think makes Casita
+better: a fix, a test, a refactor, a feature, docs, polish, or a
+simplification, and tell us why you chose it. The choice is part of the
+signal.
 
 Please keep the demo path credentials-free:
 
@@ -18,7 +19,7 @@ Please keep the demo path credentials-free:
 No support is implied. This is a personal-use codebase published as an
 interview instrument, not a maintained product.
 
-Before opening a pull request, run:
+Before sharing your fork, run:
 
 ```bash
 make check

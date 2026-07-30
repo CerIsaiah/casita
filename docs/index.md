@@ -17,9 +17,9 @@ candidate chooses to improve.
 
 ## The Invitation
 
-Pick something you think makes Casita better: a fix, a test, a refactor, a
-feature, docs, polish, or simplification. Tell us why you chose it in the pull
-request description.
+Fork the repo and make it your own. Pick something you think makes Casita
+better: a fix, a test, a refactor, a feature, docs, polish, or a
+simplification, and tell us why you chose it.
 
 The code intentionally keeps the personal-tool shape. Large dogs matter. San
 Francisco walkability matters. Marin drive times matter. Trails, beaches, and

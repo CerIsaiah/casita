@@ -69,5 +69,5 @@ that the CLI imports.
 
 ## Contributing
 
-Read `CONTRIBUTING.md`. The short version: pick something you think makes
-Casita better, and explain why you chose it in the PR description.
+Read `CONTRIBUTING.md`. The short version: fork the repo, pick something you
+think makes Casita better, and explain why you chose it.
