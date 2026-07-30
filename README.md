@@ -1,5 +1,7 @@
 # Casita
 
+[![Documentation](https://img.shields.io/badge/docs-matin.github.io%2Fcasita-0b6e4f?style=for-the-badge)](https://matin.github.io/casita/)
+
 Casita is a personal rental-search tool published as a public repo.
 
 It started as a small script for a time-boxed San Francisco rental search with
@@ -46,8 +48,8 @@ That is the point of a personal tool.
 
 ## Docs
 
-The documentation site explains the systems without turning them into assigned
-tasks:
+The [documentation site](https://matin.github.io/casita/) explains the systems
+without turning them into assigned tasks. To run it locally instead:
 
 ```bash
 uv run zensical serve
