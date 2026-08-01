@@ -1,6 +1,6 @@
 # Casita
 
-[![Documentation](https://img.shields.io/badge/docs-matin.github.io%2Fcasita-0b6e4f?style=for-the-badge)](https://matin.github.io/casita/)
+[![Documentation](https://img.shields.io/badge/docs-casita-0b6e4f?style=for-the-badge)](https://matin.github.io/casita/)
 
 Casita is a personal rental-search tool published as a public repo.
 
