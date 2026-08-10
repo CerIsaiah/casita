@@ -23,53 +23,6 @@ def public_url(path: str) -> str:
     return f"{site_url()}{path if path.startswith('/') else '/' + path}"
 
 
-def _gcal_link(L: Listing, viewing_at: str, duration_minutes: int = 60) -> str | None:
-    """Build a Google Calendar event-create URL for a scheduled viewing.
-
-    viewing_at is interpreted as wall-clock time in America/Los_Angeles.
-    End = start + duration_minutes.
-    """
-    try:
-        start = datetime.fromisoformat(viewing_at).replace(tzinfo=PACIFIC)
-    except Exception:
-        return None
-    end = start + timedelta(minutes=duration_minutes)
-    fmt = "%Y%m%dT%H%M%S"
-    # Google Calendar accepts local times when ctz is set.
-    dates = f"{start.strftime(fmt)}/{end.strftime(fmt)}"
-    address = L.address or L.title or "TBD"
-    title = f"Viewing · {address.split(',')[0]}"
-
-    details_parts = []
-    if L.url:
-        details_parts.append(f"Listing: {L.url}")
-    if L.price:
-        details_parts.append(f"Price: ${L.price:,}/mo")
-    bb = []
-    if L.beds: bb.append(f"{L.beds:g} bd")
-    if L.baths: bb.append(f"{L.baths:g} ba")
-    if L.sqft: bb.append(f"{L.sqft:,} sqft")
-    if bb: details_parts.append(" · ".join(bb))
-    if L.contact_name or L.contact_phone:
-        c = " ".join(filter(None, [L.contact_name, L.contact_phone]))
-        details_parts.append(f"Landlord: {c}")
-    if L.parking: details_parts.append(f"Parking: {L.parking}")
-    if L.laundry: details_parts.append(f"Laundry: {L.laundry}")
-    if L.has_yard: details_parts.append(f"Yard: {L.yard_note or 'yes'}")
-    details = "\n".join(details_parts)
-
-    params = {
-        "action": "TEMPLATE",
-        "text": title,
-        "dates": dates,
-        "details": details,
-        "location": address,
-        "ctz": "America/Los_Angeles",
-    }
-    qs = "&".join(f"{k}={quote_plus(v)}" for k, v in params.items())
-    return f"https://calendar.google.com/calendar/render?{qs}"
-
-
 def _clean_address_for_maps(addr: str) -> str | None:
     """Turn a Craigslist-ish address into something Google Maps can geocode.
 
@@ -1389,9 +1342,56 @@ def _amenity_chips(L: Listing) -> list[str]:
     return chips[:3]
 
 
-def _card(L: Listing, walk_map: dict | None = None, convo: dict | None = None,
-          drive_bakery: tuple | None = None, drive_map: dict | None = None,
-          feature: bool = False) -> str:
+# What the main-page search box scans, in the order the fields are joined.
+# Lowercased and concatenated so one substring pass handles "$7000 inner
+# richmond", "734 37th", "yard" or "1758 9th ave".
+#
+# A table rather than a nineteen-element list literal with eight inline
+# ternaries: every entry was "this field, or nothing", and spelling that out
+# per field made the list the single largest contributor to _card's complexity
+# while burying the one thing worth seeing — which fields are searchable.
+#
+# Order is preserved exactly. It looks like it should not matter for a
+# substring scan, but the parts are joined with " | " and a query spanning a
+# boundary would notice, so the sequence is kept rather than reasoned about.
+# `None` means "use the value as-is"; a format string means the field is
+# numeric. Price appears twice because people type it with and without the
+# dollar sign.
+_HAYSTACK: tuple[tuple[str, str | None], ...] = (
+    ("source", None),
+    ("title", None), ("address", None), ("hood", None),
+    ("price", "${:g}"), ("price", "{:g}"),
+    ("beds", "{:g}bd"), ("baths", "{:g}ba"),
+    ("share_blurb", None), ("llm_reason", None), ("visual_summary", None),
+    ("parking", None), ("laundry", None), ("yard_note", None),
+    ("outdoor_visible", None), ("other_visible", None),
+    ("dog_policy", None),
+    ("contact_name", None), ("contact_phone", None),
+)
+
+
+def _wrap(cls: str, inner: str, tag: str = "div") -> str:
+    """`<div class=cls>inner</div>`, or nothing at all when inner is empty.
+
+    The `f'<div class="x">{v}</div>' if v else ""` shape appeared seven times
+    in _card alone. Each one is a branch, and seven branches spent on "is this
+    string empty" is most of what made the function unreadable — the reader has
+    to check every one to notice they are all the same.
+    """
+    return f'<{tag} class="{cls}">{inner}</{tag}>' if inner else ""
+
+
+def _search_haystack(L: Listing) -> str:
+    bits = []
+    for field, fmt in _HAYSTACK:
+        v = getattr(L, field, None)
+        if not v:
+            continue
+        bits.append(fmt.format(v) if fmt else str(v))
+    return _esc(" | ".join(bits).lower())
+
+
+def _card(L: Listing, convo: dict | None = None, feature: bool = False) -> str:
     """Card surface — editorial listing card:
        Photo (carousel) · source + dog overlays · neighborhood + fit verdict ·
        price + size · address · Gemini take · amenity + conversation chips.
@@ -1464,16 +1464,14 @@ def _card(L: Listing, walk_map: dict | None = None, convo: dict | None = None,
     if is_eliminated:
         elim_label = convo["status"].replace("_", " ")
         note = convo.get("status_note") or ""
-        note_html = f'<span class="card-eliminated-note">{_esc(note)}</span>' if note else ""
+        note_html = _wrap("card-eliminated-note", _esc(note), "span")
         elim_banner_html = f'<div class="card-eliminated">{_esc(elim_label)}{note_html}</div>'
 
     # The reason from Gemini IS the card's main message — share_blurb wins
     # when present (designer-friendly), else fall back to llm_reason, else
     # visual_summary, else nothing.
     reason_text = L.share_blurb or L.llm_reason or L.visual_summary or ""
-    reason_html = (
-        f'<div class="card-reason">{_esc(reason_text)}</div>' if reason_text else ""
-    )
+    reason_html = _wrap("card-reason", _esc(reason_text))
 
     # Eyebrow row: neighborhood (left) + fit verdict (right). The fit dot color
     # carries the Gemini severity; the reason text below gives the detail.
@@ -1501,13 +1499,9 @@ def _card(L: Listing, walk_map: dict | None = None, convo: dict | None = None,
     amenity_html = "".join(
         f'<span class="chip-tag">{_esc(a)}</span>' for a in _amenity_chips(L)
     )
-    tags_html = ""
-    if convo_pill or amenity_html:
-        tags_html = f'<div class="card-tags">{convo_pill}{amenity_html}</div>'
+    tags_html = _wrap("card-tags", f"{convo_pill}{amenity_html}")
 
-    address_line = ""
-    if L.address:
-        address_line = f'<div class="card-address">{_esc(L.address)}</div>'
+    address_line = _wrap("card-address", _esc(L.address or ""))
 
     feature_class = " feature" if feature else ""
     feature_flag = (
@@ -1516,21 +1510,7 @@ def _card(L: Listing, walk_map: dict | None = None, convo: dict | None = None,
         if feature else ""
     )
 
-    # Searchable haystack — used by the main-page search box. Lowercased and
-    # joined so a single substring scan handles "$7000 inner richmond" or
-    # "734 37th" or "yard" or "1758 9th ave".
-    haystack_bits = [
-        L.source or "",
-        L.title or "", L.address or "", L.hood or "",
-        f"${L.price}" if L.price else "", f"{L.price}" if L.price else "",
-        f"{L.beds:g}bd" if L.beds else "", f"{L.baths:g}ba" if L.baths else "",
-        L.share_blurb or "", L.llm_reason or "", L.visual_summary or "",
-        L.parking or "", L.laundry or "", L.yard_note or "",
-        L.outdoor_visible or "", L.other_visible or "",
-        L.dog_policy or "",
-        L.contact_name or "", L.contact_phone or "",
-    ]
-    haystack = _esc(" | ".join(b for b in haystack_bits if b).lower())
+    haystack = _search_haystack(L)
 
     # Fallback so cards with thin data still render something useful.
     fallback_title = ""
@@ -1561,76 +1541,22 @@ def _card(L: Listing, walk_map: dict | None = None, convo: dict | None = None,
 """
 
 
-_FILTER_JS = """
-(function() {
-  const grid = document.querySelector('main.grid');
-  const cards = Array.from(grid.querySelectorAll('.card'));
-  const countEl = document.getElementById('count');
-  const dogChips = Array.from(document.querySelectorAll('.chip[data-filter="dog"]'));
-  const walkAnchor = document.getElementById('walk-anchor');
-  const walkChips = Array.from(document.querySelectorAll('.chip[data-filter="walk"]'));
-
-  function setDogState(value) {
-    dogChips.forEach(c => c.setAttribute('aria-pressed', c.dataset.value === value ? 'true' : 'false'));
-    applyFilters();
-  }
-  function setWalkState(value) {
-    walkChips.forEach(c => c.setAttribute('aria-pressed', c.dataset.value === value ? 'true' : 'false'));
-    applyFilters();
-  }
-  dogChips.forEach(c => c.addEventListener('click', () => setDogState(c.dataset.value)));
-  walkChips.forEach(c => c.addEventListener('click', () => setWalkState(c.dataset.value)));
-  walkAnchor.addEventListener('change', applyFilters);
-
-  function activeDog() {
-    const p = dogChips.find(c => c.getAttribute('aria-pressed') === 'true');
-    return p ? p.dataset.value : 'any';
-  }
-  function activeWalkMax() {
-    const p = walkChips.find(c => c.getAttribute('aria-pressed') === 'true');
-    return p ? parseInt(p.dataset.value, 10) : Infinity;
-  }
-
-  function applyFilters() {
-    const dog = activeDog();
-    const anchor = walkAnchor.value;     // 'beach' | 'arsicault' | 'arizmendi'
-    const maxMin = activeWalkMax();
-    let shown = 0;
-    cards.forEach(card => {
-      const dogOk = dog === 'any' || card.dataset.dog === dog;
-      const mins = parseInt(card.dataset[anchor] || '999', 10);
-      const walkOk = !isFinite(maxMin) || mins <= maxMin;
-      const visible = dogOk && walkOk;
-      card.style.display = visible ? '' : 'none';
-      if (visible) shown++;
-    });
-    countEl.textContent = shown;
-    let empty = grid.querySelector('.empty');
-    if (shown === 0) {
-      if (!empty) {
-        empty = document.createElement('div');
-        empty.className = 'empty';
-        empty.textContent = 'No listings match these filters.';
-        grid.appendChild(empty);
-      }
-    } else if (empty) {
-      empty.remove();
-    }
-  }
-})();
-"""
 
 
 def render(
-    listings: list[Listing], run=None, walk_map: dict | None = None,
+    listings: list[Listing], run=None,
     convo_map: dict[str, dict] | None = None,
-    drive_bakery_map: dict | None = None,
-    drive_map: dict | None = None,
     title: str = "Casita",
 ) -> str:
+    """The index page.
+
+    No route matrices here. `walk_map`, `drive_map` and `drive_bakery_map` were
+    threaded in and passed straight through to `_card`, which declared them and
+    never read one of them — three arguments carried the length of the render
+    path to be discarded. The detail pages do use them, and still take them
+    directly; the index simply never needed to know.
+    """
     convo_map = convo_map or {}
-    drive_bakery_map = drive_bakery_map or {}
-    drive_map = drive_map or {}
 
     # Pick the feature card — the top-ranked strong fit that isn't eliminated.
     # rank() already sorts best-first, so the first qualifying listing wins.
@@ -1643,9 +1569,7 @@ def render(
             break
 
     cards = "\n".join(
-        _card(L, walk_map=walk_map, convo=convo_map.get(L.key),
-              drive_bakery=drive_bakery_map.get(L.key),
-              drive_map=drive_map, feature=(L.key == feature_key))
+        _card(L, convo=convo_map.get(L.key), feature=(L.key == feature_key))
         for L in listings
     )
     ts_raw = (run["finished_at"] or run["started_at"]) if run else datetime.utcnow().isoformat()

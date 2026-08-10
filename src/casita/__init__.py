@@ -1091,10 +1091,7 @@ def _render_site(filename: str, output_dir: Path) -> dict[str, int | Path]:
     _drop_missing_local_media(listings, output_dir)
     out_html = output_dir / filename
     out_html.parent.mkdir(exist_ok=True)
-    out_html.write_text(html.render(
-        listings, run=run, walk_map=walk_map, convo_map=convo_map,
-        drive_bakery_map=drive_bakery_map, drive_map=drive_map,
-    ))
+    out_html.write_text(html.render(listings, run=run, convo_map=convo_map))
 
     # Per-listing detail pages — one file per active listing under tmp/listing/.
     from . import listing_page

@@ -34,7 +34,6 @@ from .html import (
     _anchor_link_html,
     _clean_address_for_maps,
     _esc,
-    _gcal_link,
     public_url,
     _walk_class,
 )
