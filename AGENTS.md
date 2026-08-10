@@ -70,6 +70,26 @@ docs page before changing code.
 - Live `search`, `enrich`, and `publish` paths may use credentials from
   `.env`, but they must stay optional and environment-driven.
 
+### Landlord and public-records data
+
+Building history and owner lookups pull third-party personal data out of public
+records. That is a different risk than the "no private data" rule above: the
+names are lawfully public, but they belong to identifiable people who did not
+opt into this project.
+
+- Owner names, mailing addresses, and portfolio graphs are **live-path only**,
+  behind explicit env vars, exactly like `search` and `enrich`. Never required
+  for the demo or the test suite.
+- `fixtures/demo.sqlite` uses **synthetic** landlords and buildings. Do not
+  commit a fixture built from real owner-name lookups.
+- Prefer building-level claims that the data actually supports. Complaint,
+  violation, and permit records key to a parcel; SF eviction and Rent Board
+  records are published **block-level only** and cannot be attributed to a
+  specific building or owner.
+- Attribute every surfaced claim to its source record so a reader can check it.
+  Do not render inferred or model-generated allegations about a named person or
+  company as fact.
+
 ## Code Style
 
 - Prefer the existing small-module, plain-Python style.
