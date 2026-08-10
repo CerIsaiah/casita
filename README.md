@@ -1,4 +1,5 @@
 # Casita - an apartment hunter that understands you
+<img width="1510" height="825" alt="image" src="https://github.com/user-attachments/assets/f0c720bc-a94e-4c89-a1c3-42dd5cbc15c8" />
 
 **[Live demo →](https://casita-henna.vercel.app)**
 
