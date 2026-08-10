@@ -3,10 +3,35 @@
 
 **[Live demo →](https://casita-henna.vercel.app)**
 
-Casita reads every rental listing in San Francisco it can reach - about 2,600 at
-a time from Craigslist, Zillow, and Apartments.com - and cross-references each
-one against the city's own records: police incidents, 311 reports, and building
-violations filed against that exact building complex. Additionally, it seeks to simplify the home search to only factors that YOU care about. If nightlife is important to you, it will show you places as close to nightlife as possible, while budget constraints will work to get you the perfect place containing the most amenities and safest area in the meantime. Apartment hunters in san francisco are also constantly confronted with scams. Thats why I have a system that scans each booking and cross examines things like building rules, whether contact information present and common other factors that appear if a listing is fake. Not sure if your landlord is correct on things like craiglists listings?  I implemented a 50 quota, “look up you landlord feature” that finds and validates if the person selling you the house is actually authorized to be selling you the house. 
+## What Casita Does
+
+**Casita reads every rental listing in San Francisco it can reach — about 2,600 at a time from Craigslist, Zillow, and Apartments.com — and cross-references each one against the city's own records.**
+
+That includes things like:
+
+- Police incidents
+- 311 reports
+- Building violations filed against that exact building complex
+
+Additionally, it seeks to simplify the home search to only factors that **YOU** care about.
+
+If nightlife is important to you, it will show you places as close to nightlife as possible, while budget constraints will work to get you the perfect place containing the most amenities and safest area in the meantime.
+
+## Scam Detection
+
+Apartment hunters (like my friends) in San Francisco are also constantly confronted with scams.
+
+That’s why I have a system that scans each booking and cross-examines things like:
+
+- Building rules
+- Whether contact information is present
+- Common other factors that appear if a listing is fake
+
+## Landlord Lookup
+
+Not sure if your landlord is correct on things like Craigslist listings?
+
+I implemented a **50-quota “Look Up Your Landlord” feature** that finds and validates if the person selling you the house is actually authorized to be selling you the house.
 
 
 ---
@@ -61,27 +86,27 @@ Four things kept surfacing:
 First I scraped san franscisco subreddit and found the top 20 most problems people have finding apartments in sf. 
 Additionally over the weekend i spoke with several friends about issues they’ve had in the past 
 
-Top 20 issues found on reddit
-Repair stonewalling - ~40
-Speed beats everything / listings disappear fast - ~34
-Off-hours noise - ~31
-Roommate / master-tenant traps - ~30
-Eviction pressure / retaliation - ~26
-Landlord reputation is hard to research - ~25
-Concealed physical defects - ~23
-Scams / phantom listings - ~23
-Rent-control status unclear - ~22
-Effective rent is higher than listed rent - ~22
-Lease-structure traps - ~20
-Parking availability is misleading - ~19
-Utility metering / billing is opaque - ~19
-Pet restrictions / pet fees disqualify renters - ~16
-Security claims don’t match reality - ~14
-Lack of short-term / sub-12-month leases - ~14
-Screening barriers / unclear approval requirements - ~13
-Substandard housing at market prices - ~13
-Deposit / move-out fee extraction - ~11
-Unpermitted / questionable units - ~9
+## Top 20 issues found on Reddit
+- Repair stonewalling - ~40
+- Speed beats everything / listings disappear fast - ~34
+- Off-hours noise - ~31
+- Roommate / master-tenant traps - ~30
+- Eviction pressure / retaliation - ~26
+- Landlord reputation is hard to research - ~25
+- Concealed physical defects - ~23
+- Scams / phantom listings - ~23
+- Rent-control status unclear - ~22
+- Effective rent is higher than listed rent - ~22
+- Lease-structure traps - ~20
+- Parking availability is misleading - ~19
+- Utility metering / billing is opaque - ~19
+- Pet restrictions / pet fees disqualify renters - ~16
+- Security claims don’t match reality - ~14
+- Lack of short-term / sub-12-month leases - ~14
+- Screening barriers / unclear approval requirements - ~13
+- Substandard housing at market prices - ~13
+- Deposit / move-out fee extraction - ~11
+- Unpermitted / questionable units - ~9
 
 ### 2. Market research
 
@@ -100,13 +125,7 @@ Two that shaped my thinking:
 
 ### 3. Determine marketability
 
-If I could see a creator filming the quiz and the reveal - thirty seconds of
-answering five questions, then the top match with its safety layers switched on
-and the block lighting up underneath it. The hook writes itself: *the stuff
-apartment sites won't show you.*
-
-That format works because the payoff is visual and the input is short. Most
-rental tools can't be demoed in a clip, because using them is the boring part.
+I could imagine a world where creators create tiktoks showing off (what are they showing off). Combine this with the simplicity of a quiz + a simple interface showing best to worst matches.. This tool is meant to delete the fatigue and cross searches that many job hunters are using in their job search (angle would be something simple like, fill out this short quiz and find your 
 
 ### 4. Determine how I could actually build it
 
@@ -114,7 +133,6 @@ The demo is a single static page with no framework and no build step, so hosting
 is free and stays free. The costs are all on the data side, and they're one-off
 per refresh rather than per visitor:
 
-| | |
 |---|---|
 | Apify actor (Apartments.com) | a few cents per full sweep |
 | RentCast (owner lookups) | 50 free/month, then $0.20/request |
@@ -194,8 +212,7 @@ transit question.
 ### The stack
 
 No framework, no build step, no dependencies at runtime. Python for the
-pipeline, vanilla JavaScript for the interface, canvas for the maps, SQLite in
-between. The whole site is one self-contained HTML file plus a routing graph.
+pipeline, vanilla JavaScript for the interface, canvas for the maps, SQLite for data
 
 ---
 
@@ -214,15 +231,8 @@ python3 pipeline/build_pages.py --new
 python3 serve.py             # http://127.0.0.1:8799/casita-demo.html
 ```
 
-That works on a clean checkout because the sanitised data set is committed: all
-2,589 listings, the street heatmap grid, the places index, and the 102,048-edge
-routing graph. What is *not* committed is the raw scrape, which carries phone
-numbers and owner names read out of public property records. Those are stripped
-before anything reaches the repo, and a check in `sanitize_public.py` fails the
-build if a single one survives.
+That works on a clean checkout because the sanitised data set is committed so you shouldnt need to do a full reset.
 
-A clone gets everything the product reasons about and nothing that belongs to a
-person.
 
 ### Refreshing the data
 
@@ -267,16 +277,9 @@ rental-search tool published as an open interview project. The seed repo scrapes
 listings into SQLite, enriches them with Gemini, and renders a static site; that
 codebase still lives here under `src/casita/` and its own docs are in `docs/`.
 
-Everything in `research/` is mine: the rebuild described above, its scoring
-model, the city-data layer, the scam auditor, the routing graph, and the
-interface. Where I changed the original I said why in the commit.
-
 The seed project's own demo still runs, credentials-free, off a sanitised
 fixture:
 
 ```bash
 uv run casita demo          # http://127.0.0.1:8765/
 make check                  # compile, tests, leak validator, docs, package
-```
-
-Contributions to the upstream project: read `CONTRIBUTING.md` there.
