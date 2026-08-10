@@ -55,17 +55,38 @@ def _is_text_path(path: Path) -> bool:
     return path.name in {"Makefile", "LICENSE"} or path.suffix in TEXT_SUFFIXES
 
 
+# Runtime artefacts, all gitignored, none of them published. They are listed
+# here because this validator asks "could a reader of the repo see this", and a
+# directory that never ships cannot leak. `.chrome-profile` in particular is
+# not merely noise: Chromium's Service Worker cache writes an `index.txt` that
+# is binary, so scanning it crashed the validator outright the first time
+# anyone ran `casita search` -- a leak check that dies on a cache file reports
+# nothing at all, which is the one failure mode it cannot afford.
+IGNORED_DIRS = {
+    ".git", ".venv", ".cache", "site", "tmp",
+    ".chrome-profile",       # persistent Playwright profile
+    "node_modules", ".vercel", "__pycache__", ".pytest_cache", ".ruff_cache",
+    "public",               # research/public: the generated deploy directory
+}
+
+
 def _iter_project_text() -> list[tuple[Path, str]]:
     out: list[tuple[Path, str]] = []
-    ignored_dirs = {".git", ".venv", ".cache", "site", "tmp"}
     for path in ROOT.rglob("*"):
         if path == Path(__file__).resolve():
             continue
-        if any(part in ignored_dirs for part in path.relative_to(ROOT).parts):
+        if any(part in IGNORED_DIRS for part in path.relative_to(ROOT).parts):
             continue
         if not path.is_file() or not _is_text_path(path):
             continue
-        out.append((path, path.read_text(encoding="utf-8")))
+        try:
+            out.append((path, path.read_text(encoding="utf-8")))
+        except UnicodeDecodeError:
+            # A text-suffixed file that is not text. Scan the decodable parts
+            # rather than skipping it: the patterns this looks for are ASCII,
+            # so they survive the replacement, and silently passing over a file
+            # is how a validator ends up green while a secret sits in the tree.
+            out.append((path, path.read_text(encoding="utf-8", errors="replace")))
     return out
 
 
