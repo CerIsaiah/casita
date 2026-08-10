@@ -11,6 +11,7 @@ still returns broader results than the filters imply (studios, 1BRs). We
 re-filter client-side from `min_bedrooms` and the returned structured fields.
 """
 import re
+from datetime import UTC, datetime
 from typing import Any
 
 from playwright.async_api import BrowserContext
@@ -51,6 +52,48 @@ def _img_url(image_id: Any) -> str | None:
     return f"https://img.zumpercdn.com/{image_id}/1280x960"
 
 
+def _posted_at(raw) -> datetime | None:
+    """Zumper's `created_on`, a Unix timestamp, as a datetime.
+
+    Guarded rather than trusted: a bad value here would poison a sort, and the
+    whole point of this field is that it is more trustworthy than `first_seen`.
+    """
+    if not isinstance(raw, (int, float)) or raw <= 0:
+        return None
+    try:
+        ts = datetime.fromtimestamp(raw, tz=UTC)
+    except (OverflowError, OSError, ValueError):
+        return None
+    # Sanity window: rental listings are not from 1994, nor from next decade.
+    if not 2000 <= ts.year <= datetime.now(UTC).year + 1:
+        return None
+    return ts.replace(tzinfo=None)
+
+
+def _baths(rec: dict) -> float | None:
+    """Bathrooms, tolerating Zumper's two different shapes for the same fact.
+
+    `min_bathrooms` is a plain number, but it is 0 on plenty of records, and
+    `0 or x` in Python reaches for `x`. The fallback `min_all_bathrooms` is
+    *always* a list -- `[full, half]` -- so the old `a or b` chain handed a
+    list to `float()` and the exception dropped the whole listing. That is the
+    worst way to lose a record: silently, and only for the units whose bath
+    count was unusual enough to be worth seeing.
+    """
+    n = rec.get("min_bathrooms")
+    if isinstance(n, (int, float)) and n > 0:
+        return float(n)
+    parts = rec.get("min_all_bathrooms")
+    if isinstance(parts, list) and parts:
+        full = parts[0] if isinstance(parts[0], (int, float)) else 0
+        half = parts[1] if len(parts) > 1 and isinstance(parts[1], (int, float)) else 0
+        total = full + 0.5 * half
+        return float(total) if total > 0 else None
+    if isinstance(parts, (int, float)) and parts > 0:
+        return float(parts)
+    return None
+
+
 def _record_to_listing(rec: dict, neighborhood: str) -> Listing | None:
     lid = rec.get("listing_id")
     if not lid:
@@ -62,7 +105,7 @@ def _record_to_listing(rec: dict, neighborhood: str) -> Listing | None:
 
     price = rec.get("min_price") or rec.get("max_price")
     beds = rec.get("min_bedrooms")
-    baths = rec.get("min_bathrooms") or rec.get("min_all_bathrooms")
+    baths = _baths(rec)
     sqft_raw = rec.get("min_square_feet")
     sqft = (
         int(sqft_raw)
@@ -87,6 +130,12 @@ def _record_to_listing(rec: dict, neighborhood: str) -> Listing | None:
     photos = [u for u in (_img_url(i) for i in image_ids[:8]) if u]
     image_url = photos[0] if photos else None
 
+    # Zumper stamps every listable with a Unix `created_on`. It is the only
+    # recency signal any of the search feeds hand over for free, and without it
+    # "sort by newest" can only mean "newest to us", which is a fact about our
+    # scrape schedule rather than about the market.
+    posted_at = _posted_at(rec.get("created_on"))
+
     return Listing(
         source="zumper",
         source_id=str(lid),
@@ -96,12 +145,17 @@ def _record_to_listing(rec: dict, neighborhood: str) -> Listing | None:
         neighborhood=neighborhood,
         neighborhood_resolved=resolved,
         price=int(price) if price else None,
-        beds=float(beds) if beds is not None else None,
-        baths=float(baths) if baths is not None else None,
+        beds=float(beds) if isinstance(beds, (int, float)) else None,
+        baths=baths,
         sqft=sqft,
         image_url=image_url,
         photos=photos,
-        pets_allowed=True,  # we searched dogs=true; enrich resolves dog_policy from detail page
+        pets_allowed=True,  # we searched dogs=true; enrich refines from the detail page
+        # The search filtered on dogs=true, so "dogs allowed" is known, but the
+        # size rule is not. `dogs_ok` is the honest floor: enrichment can only
+        # sharpen it to large_ok or small_only, never invent it from None.
+        dog_policy="dogs_ok",
+        posted_at=posted_at,
         lat=lat,
         lng=lng,
         raw=rec,

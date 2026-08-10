@@ -189,6 +189,11 @@ def _record_to_listing(rec: dict, area: str, geo_idx: dict[str, dict]) -> Listin
         image_url=image_url,
         photos=[image_url] if image_url else [],
         pets_allowed=True,  # we filtered for pets-allowed=dogs
+        # Same reasoning as zumper: the search already asked for dog-friendly,
+        # so `dogs_ok` is known and the size rule is not. Leaving this None
+        # threw away a fact the URL had already established, and made every
+        # Redfin listing look unvetted next to a Craigslist one.
+        dog_policy="dogs_ok",
         lat=lat,
         lng=lng,
         raw=rec,

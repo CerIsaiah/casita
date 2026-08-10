@@ -27,9 +27,22 @@ window.chrome = { runtime: {} };
 PROFILE_DIR = Path(__file__).parent.parent.parent / ".chrome-profile"
 
 
+# A search feed is only worth scraping if it is today's. The persistent profile
+# exists so a solved captcha survives between runs, but it also carries
+# Chromium's HTTP cache, and a cached search page is indistinguishable from a
+# market where nothing was listed. Every request therefore declares itself
+# uncacheable; the cookies that make the profile worth keeping are unaffected.
+NO_CACHE_HEADERS = {"Cache-Control": "no-cache, max-age=0", "Pragma": "no-cache"}
+
+
 @asynccontextmanager
-async def context(headless: bool = False, persistent: bool = True):
-    """Browser context. Defaults to persistent profile so captcha-clears stick."""
+async def context(headless: bool = False, persistent: bool = True,
+                  fresh: bool = True):
+    """Browser context. Defaults to persistent profile so captcha-clears stick.
+
+    `fresh` bypasses the HTTP cache. On by default: every caller here is
+    scraping a listing feed, where a stale answer is worse than a slow one.
+    """
     async with async_playwright() as p:
         if persistent:
             PROFILE_DIR.mkdir(exist_ok=True)
@@ -46,6 +59,8 @@ async def context(headless: bool = False, persistent: bool = True):
                 ],
             )
             await ctx.add_init_script(STEALTH_JS)
+            if fresh:
+                await ctx.set_extra_http_headers(NO_CACHE_HEADERS)
             try:
                 yield ctx
             finally:
@@ -62,6 +77,8 @@ async def context(headless: bool = False, persistent: bool = True):
                 timezone_id="America/Los_Angeles",
             )
             await ctx.add_init_script(STEALTH_JS)
+            if fresh:
+                await ctx.set_extra_http_headers(NO_CACHE_HEADERS)
             try:
                 yield ctx
             finally:

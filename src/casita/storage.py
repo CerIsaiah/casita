@@ -174,6 +174,7 @@ COLUMNS = [
     "description", "image_url", "photos_json", "lat", "lng", "raw_json",
     "light_quality", "view_quality", "condition_quality",
     "outdoor_visible", "other_visible", "visual_summary", "share_blurb", "share_token",
+    "posted_at",
 ]
 
 
@@ -200,6 +201,11 @@ _NEW_COLUMNS: list[tuple[str, str, str]] = [
     ("listings", "share_token", "TEXT"),
     ("listings", "address_verified", "INTEGER NOT NULL DEFAULT 0"),
     ("listings", "contact_note", "TEXT"),
+    # When the *source* says the listing was posted, as distinct from
+    # `first_seen`, which is when we happened to scrape it. A listing found on
+    # its ninth day looks brand new to `first_seen`, and "how long has this sat
+    # unrented" is exactly the question a renter is asking.
+    ("listings", "posted_at", "TIMESTAMP"),
 ]
 
 

@@ -59,6 +59,11 @@ class Listing(BaseModel):
     lat: float | None = None
     lng: float | None = None
     neighborhood_resolved: str | None = None  # computed from lat/lng, overrides `neighborhood`
+    # When the source says it was posted. Distinct from `first_seen`, which is
+    # when we happened to scrape it — a listing found on its ninth day looks
+    # brand new to `first_seen`, and "how long has this sat unrented" is a
+    # question a renter actually asks.
+    posted_at: datetime | None = None
     first_seen: datetime | None = None  # when this listing first entered the DB (set by storage)
     raw: dict = Field(default_factory=dict)
     scraped_at: datetime = Field(default_factory=datetime.utcnow)
