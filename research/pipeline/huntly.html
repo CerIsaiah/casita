@@ -1,0 +1,652 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Huntly — fewer listings, fewer surprises</title>
+
+<style>
+:root{
+  --bg:#FBFAF8; --card:#FFFFFF; --sub:#F6F4F1;
+  --ink:#17171A; --ink-2:#5F6169; --ink-3:#9A9CA4;
+  --line:#E8E6E1; --line-2:#F1EFEB;
+  --or:#E4622A; --or-bg:#FDF1EB; --or-line:#F6D6C6;
+  --gr:#2E8B57; --gr-bg:#EDF7F1; --gr-line:#CDE7D8;
+  --am:#B8860B; --am-bg:#FBF4E3;
+  --bl:#2F6FB0; --bl-bg:#EDF3FA;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  --r:10px; --r-sm:7px;
+  --sh:0 1px 2px rgba(20,20,25,.05),0 2px 8px rgba(20,20,25,.045);
+  --sh-lg:0 4px 12px rgba(20,20,25,.07),0 18px 44px rgba(20,20,25,.11);
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;
+  line-height:1.5;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{margin:0;letter-spacing:-.018em}
+p{margin:0}
+button,input,select{font-family:inherit}
+img{display:block}
+.wrap{max-width:1660px;margin:0 auto;padding:0 20px}
+
+/* ---------- header ---------- */
+header{background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:70}
+.hrow{display:flex;align-items:center;gap:16px;height:70px}
+.logo{display:flex;align-items:center;gap:9px;cursor:pointer}
+.logo .mk{width:30px;height:30px;border-radius:8px;background:var(--or-bg);color:var(--or);
+  display:grid;place-items:center}
+.logo b{font-size:22px;font-weight:700;letter-spacing:-.03em}
+.logo .tag{font-size:11px;color:var(--ink-3);line-height:1.25;margin-left:2px}
+.searchbar{display:flex;flex:1 1 380px;max-width:620px;border:1px solid var(--line);
+  border-radius:var(--r);overflow:hidden;background:var(--card);transition:.15s}
+.searchbar:focus-within{border-color:var(--or);box-shadow:0 0 0 3px var(--or-bg)}
+.sfield{display:flex;align-items:center;gap:9px;padding:0 14px;flex:1;min-width:0}
+.sfield svg{flex:none;color:var(--ink-3)}
+.sfield input{border:0;outline:0;background:0;padding:12px 0;font-size:14px;width:100%;
+  color:var(--ink);min-width:0}
+.sdiv{width:1px;background:var(--line)}
+nav{display:flex;gap:2px;margin-left:auto}
+nav a{font-size:14px;font-weight:520;color:var(--ink-2);text-decoration:none;padding:8px 12px;
+  border-radius:99px;cursor:pointer;white-space:nowrap}
+nav a:hover{background:var(--sub);color:var(--ink)}
+nav a.on{color:var(--or);font-weight:620}
+.addbtn{border:1px solid var(--or);color:var(--or);background:var(--card);border-radius:var(--r);
+  font-size:14px;font-weight:600;padding:9px 15px;cursor:pointer;display:flex;align-items:center;
+  gap:7px;white-space:nowrap}
+.addbtn:hover{background:var(--or);color:#fff}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--sub);border:1px solid var(--line);
+  display:grid;place-items:center;font-size:12px;font-weight:640;color:var(--ink-2);flex:none}
+
+/* ---------- summary strip ---------- */
+.strip{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  margin:14px 0 0;display:flex;align-items:center;gap:8px;padding:14px 18px;flex-wrap:wrap;
+  box-shadow:var(--sh)}
+.metric{display:flex;align-items:center;gap:11px;padding-right:26px}
+.metric .ic{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;flex:none}
+.metric b{font-size:20px;font-weight:700;letter-spacing:-.03em;line-height:1.1;display:block}
+.metric span{font-size:12.5px;color:var(--ink-2)}
+.m-new .ic{background:var(--gr-bg);color:var(--gr)}
+.m-dup .ic{background:var(--sub);color:var(--ink-3)}
+.m-drop .ic{background:var(--gr-bg);color:var(--gr)}
+.m-wait .ic{background:var(--am-bg);color:var(--am)}
+.stripnote{margin-left:auto;display:flex;align-items:center;gap:11px;padding-left:22px;
+  border-left:1px solid var(--line)}
+.stripnote .ic{color:var(--ink-2)}
+.stripnote p{font-size:13px;color:var(--ink-2);line-height:1.35}
+.stripnote b{color:var(--ink);font-weight:600}
+.stripnote a{color:var(--ink-3);font-size:12.5px;text-decoration:underline;cursor:pointer}
+
+/* ---------- filters ---------- */
+.filterbar{display:flex;align-items:center;gap:9px;margin:14px 0;flex-wrap:wrap}
+.fdrop{position:relative}
+.fbtn{border:1px solid var(--line);background:var(--card);border-radius:var(--r);font-size:14px;
+  padding:9px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--ink);
+  white-space:nowrap}
+.fbtn:hover{border-color:var(--ink-3)}
+.fbtn.act{border-color:var(--or);color:var(--or);background:var(--or-bg)}
+.fbtn .cv{transition:.2s}
+.fdrop.open .cv{transform:rotate(180deg)}
+.fmenu{display:none;position:absolute;top:calc(100% + 6px);left:0;background:var(--card);
+  border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-lg);padding:12px;
+  z-index:40;min-width:210px}
+.fdrop.open .fmenu{display:block}
+.fmenu.wide{min-width:330px}
+.dlayer{font-size:12px;padding:5px 10px;border-radius:99px;border:1px solid var(--line);
+  background:var(--card);color:var(--ink-2);cursor:pointer}
+.dlayer:hover{background:var(--sub)}
+.dlayer.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.wt{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;
+  padding:7px 4px;border-bottom:1px solid var(--line-2)}
+.wt b{font-size:13.5px;font-weight:560}
+.wt small{grid-column:1/-1;font-size:11.5px;color:var(--ink-3);line-height:1.35}
+.wt input[type=range]{width:78px;accent-color:var(--or)}
+.sortopt{display:flex;align-items:center;gap:8px;font-size:14px;padding:7px 4px;
+  border-radius:7px;cursor:pointer}
+.sortopt:hover{background:var(--sub)}
+.sortopt.on{font-weight:640;color:var(--or)}
+.fmenu label{display:flex;align-items:center;gap:9px;font-size:14px;padding:6px 4px;
+  cursor:pointer;border-radius:6px}
+.fmenu label:hover{background:var(--sub)}
+.fmenu .row2{display:flex;gap:8px;align-items:center}
+.fmenu input[type=number]{width:88px;border:1px solid var(--line);border-radius:6px;
+  padding:8px 9px;font-size:13.5px;outline:0}
+.toggle{margin-left:auto;display:flex;border:1px solid var(--line);border-radius:var(--r);
+  overflow:hidden;background:var(--card)}
+.toggle button{border:0;background:0;font-size:13.5px;font-weight:560;padding:9px 15px;
+  cursor:pointer;color:var(--ink-2)}
+.toggle button.on{background:var(--ink);color:#fff}
+.infodot{width:24px;height:24px;border-radius:50%;border:1px solid var(--line);background:var(--card);
+  color:var(--ink-3);font-size:12px;cursor:pointer;display:grid;place-items:center;flex:none}
+
+/* ---------- layout ---------- */
+/* The listings carry far more content than the map does, and an even split made
+   the featured card overflow its own column -- its footer buttons ran under the
+   map. The map is legible narrower; the cards are not. */
+.split{display:grid;grid-template-columns:minmax(0,1.22fr) minmax(0,0.78fr);gap:16px;
+  align-items:start;padding-bottom:24px}
+.results{display:grid;gap:11px;max-height:calc(100vh - 230px);overflow-y:auto;padding-right:4px}
+.results::-webkit-scrollbar{width:9px}
+.results::-webkit-scrollbar-thumb{background:var(--line);border-radius:9px}
+.mapcol{position:sticky;top:206px}
+
+/* ---------- listing cards ---------- */
+.lc{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;
+  cursor:pointer;transition:box-shadow .16s,border-color .16s}
+.lc:hover{box-shadow:var(--sh-lg);border-color:var(--ink-3)}
+.lc.sel{border-color:var(--or);box-shadow:0 0 0 2px var(--or-bg),var(--sh-lg)}
+
+/* featured */
+.lc.feat{display:block}
+.feat .top{display:flex;gap:0}
+.feat .ph{width:242px;flex:none;position:relative;background:var(--sub);min-height:236px}
+.feat .ph img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.feat .body{flex:1;min-width:0;padding:16px 18px;display:flex;flex-direction:column;gap:12px}
+.feat h3{overflow:hidden;text-overflow:ellipsis}
+.feat .hd{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}
+.feat h3{font-size:19px;font-weight:660;letter-spacing:-.022em}
+.feat .sub{font-size:13.5px;color:var(--ink-2);margin-top:2px}
+.feat .specs{font-size:13.5px;color:var(--ink-2);margin-top:7px;display:flex;gap:9px;
+  align-items:center;flex-wrap:wrap}
+.feat .specs i{width:3px;height:3px;border-radius:50%;background:var(--ink-3);font-style:normal}
+.prices{display:flex;gap:22px;align-items:flex-start;flex:none}
+.pr .v{font-size:19px;font-weight:700;letter-spacing:-.03em;line-height:1.15;
+  font-variant-numeric:tabular-nums}
+.pr .l{font-size:11.5px;color:var(--ink-3);margin-top:1px}
+.pr.act{padding-left:22px;border-left:1px solid var(--line)}
+.pr.act .v{color:var(--ink)}
+.pr.act .l{display:flex;align-items:center;gap:5px}
+
+{color:var(--or)} .sg.dim .ic{color:var(--ink-3)}
+
+.why{background:var(--or-bg);border-radius:var(--r-sm);padding:11px 13px;display:flex;gap:10px;
+  font-size:13.5px;color:var(--ink-2);line-height:1.45}
+.why .ic{color:var(--or);flex:none}
+.why b{color:var(--ink);font-weight:620}
+.viewbtn{border:0;background:var(--or);color:#fff;border-radius:var(--r-sm);font-size:13.5px;
+  font-weight:600;padding:10px 16px;cursor:pointer;display:flex;align-items:center;gap:7px;
+  white-space:nowrap}
+.viewbtn:hover{background:#C9521F}
+.viewbtn.ghost{background:var(--card);color:var(--ink);border:1px solid var(--line);font-weight:560}
+.viewbtn.ghost:hover{border-color:var(--ink-3);background:var(--sub)}
+
+/* compact rows */
+.lc.row{display:grid;grid-template-columns:158px minmax(0,1.25fr) minmax(0,1fr) auto auto;
+  gap:0;align-items:stretch}
+.row .ph{position:relative;background:var(--sub)}
+.row .ph img{width:100%;height:100%;object-fit:cover;min-height:106px}
+.row .c{padding:13px 15px;min-width:0;display:flex;flex-direction:column;justify-content:center}
+.row h4{font-size:15px;font-weight:640;letter-spacing:-.015em;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.row .sub{font-size:12.5px;color:var(--ink-2);margin-top:1px}
+.row .specs{font-size:12px;color:var(--ink-3);margin-top:6px;display:flex;gap:7px;
+  align-items:center;flex-wrap:wrap}
+.row .specs i{width:3px;height:3px;border-radius:50%;background:var(--line);font-style:normal}
+{color:var(--or)}
+
+/* memory chips */
+.chip{position:absolute;top:9px;left:9px;z-index:2;font-size:11px;font-weight:640;
+  padding:4px 9px;border-radius:99px;background:var(--card);border:1px solid var(--line);
+  display:flex;align-items:center;gap:5px;box-shadow:var(--sh)}
+.chip .d{width:6px;height:6px;border-radius:50%;background:var(--gr)}
+.chip.c-new{color:var(--gr);border-color:var(--gr-line);background:var(--gr-bg)}
+.chip.c-seen{color:var(--ink-2)}
+.chip.c-drop{color:var(--gr);background:var(--gr-bg);border-color:var(--gr-line)}
+.chip.c-pass{color:var(--ink-3)}
+.chip.c-save{color:var(--or);background:var(--or-bg);border-color:var(--or-line)}
+.heart{position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:50%;
+  background:rgba(255,255,255,.92);border:1px solid var(--line);display:grid;place-items:center;
+  cursor:pointer;color:var(--ink-3);z-index:2}
+.heart:hover,.heart.on{color:var(--or)}
+.noph{position:absolute;inset:0;display:grid;place-items:center;color:var(--ink-3);font-size:11px;
+  text-align:center;padding:10px}
+
+/* ---------- map ---------- */
+.mapbox{position:relative;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;
+  background:#EAE7E1;height:calc(100vh - 230px);box-shadow:var(--sh)}
+#map{width:100%;height:100%;display:block;cursor:grab}
+#map.drag{cursor:grabbing}
+.pinlayer{position:absolute;inset:0;pointer-events:none}
+.mpin{position:absolute;transform:translate(-50%,-100%);pointer-events:auto;cursor:pointer;
+  background:var(--card);border:1px solid var(--line);border-radius:99px;font-size:12px;
+  font-weight:650;padding:4px 9px;box-shadow:var(--sh);white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+.mpin:hover{border-color:var(--ink);z-index:5}
+.mpin.sel{background:var(--or);color:#fff;border-color:var(--or);z-index:6}
+.mpin.sel::after{content:"";position:absolute;left:50%;bottom:-5px;transform:translateX(-50%);
+  border:5px solid transparent;border-top-color:var(--or)}
+.maplayers{position:absolute;top:12px;right:12px;background:var(--card);border:1px solid var(--line);
+  border-radius:var(--r);box-shadow:var(--sh);padding:12px 14px;z-index:10;min-width:154px}
+.maplegend{position:absolute;left:14px;bottom:52px;background:var(--card);
+  border:1px solid var(--line);border-radius:9px;padding:9px 11px;
+  box-shadow:0 4px 16px rgba(0,0,0,.09);font-size:11.5px;max-width:230px}
+.maplegend b{display:block;font-size:12px;font-weight:640;margin-bottom:6px}
+.maplegend .bar{height:8px;border-radius:4px;margin-bottom:4px}
+.maplegend .sc{display:flex;justify-content:space-between;color:var(--ink-3);
+  font-variant-numeric:tabular-nums}
+.maplegend p{color:var(--ink-3);margin-top:6px;line-height:1.35}
+.maplayers h5{font-size:12px;font-weight:640;margin-bottom:9px;color:var(--ink-2)}
+.maplayers label{display:flex;align-items:center;gap:9px;font-size:13px;padding:4px 0;cursor:pointer}
+.maplayers .ic{width:15px;display:grid;place-items:center;color:var(--ink-3)}
+.maplayers input{margin-left:auto;accent-color:var(--or)}
+.mapzoom{position:absolute;right:12px;bottom:56px;z-index:10;display:grid;background:var(--line);
+  border:1px solid var(--line);border-radius:8px;overflow:hidden;gap:1px;box-shadow:var(--sh)}
+.mapzoom button{border:0;background:var(--card);width:32px;height:31px;cursor:pointer;font-size:16px}
+.mapzoom button:hover{background:var(--sub)}
+.mapcount{position:absolute;left:12px;bottom:12px;z-index:10;background:var(--card);
+  border:1px solid var(--line);border-radius:99px;padding:6px 13px;font-size:12.5px;
+  color:var(--ink-2);box-shadow:var(--sh)}
+
+/* ---------- bottom strip ---------- */
+.pillars{background:var(--sub);border-top:1px solid var(--line);padding:22px 0;margin-top:6px}
+.pillrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:26px}
+.pill{display:flex;gap:13px}
+.pill .ic{width:36px;height:36px;border-radius:50%;background:var(--gr-bg);color:var(--gr);
+  display:grid;place-items:center;flex:none}
+.pill h4{font-size:14.5px;font-weight:650;margin-bottom:3px}
+.pill p{font-size:13px;color:var(--ink-2);line-height:1.45}
+
+/* ---------- detail drawer ---------- */
+#drawer{position:fixed;inset:0;z-index:90;display:none}
+#drawer.on{display:block}
+.scrim{position:absolute;inset:0;background:rgba(20,20,25,.36);backdrop-filter:blur(2px)}
+.panel{position:absolute;right:0;top:0;bottom:0;width:min(760px,96vw);background:var(--bg);
+  box-shadow:var(--sh-lg);overflow-y:auto}
+.pclose{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--line);
+  padding:13px 22px;display:flex;align-items:center;gap:12px;z-index:5}
+.pclose button{border:1px solid var(--line);background:var(--card);border-radius:99px;
+  font-size:13px;padding:7px 13px;cursor:pointer}
+.pbody{padding:20px 22px 60px}
+.gallery{display:grid;grid-template-columns:2fr 1fr 1fr;gap:5px;border-radius:var(--r);
+  overflow:hidden;margin-bottom:18px}
+.gallery img{width:100%;height:100%;object-fit:cover}
+.gallery .g1{grid-row:span 2;min-height:250px}
+.gallery .gx{min-height:122px}
+.dsec{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;
+  margin-bottom:14px;box-shadow:var(--sh)}
+.dsec h4{font-size:12px;font-weight:650;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-3);margin-bottom:13px}
+.costrow{display:grid;grid-template-columns:1fr auto auto;gap:12px;padding:10px 0;
+  border-bottom:1px solid var(--line-2);align-items:center;font-size:14px}
+.costrow:last-child{border-bottom:0}
+.costrow .v{font-weight:620;font-variant-numeric:tabular-nums;text-align:right}
+.costrow .v.dim{color:var(--ink-3);font-weight:500}
+.tagx{font-size:10.5px;font-weight:620;padding:2px 8px;border-radius:99px;border:1px solid}
+.tagx.v{background:var(--gr-bg);color:var(--gr);border-color:var(--gr-line)}
+.tagx.e{background:var(--am-bg);color:var(--am);border-color:#EBD9A8}
+.tagx.u{background:var(--sub);color:var(--ink-3);border-color:var(--line)}
+.dtotal{display:flex;justify-content:space-between;align-items:baseline;padding-top:13px;
+  margin-top:5px;border-top:2px solid var(--ink)}
+.dtotal .b{font-size:22px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.hourbar{display:flex;gap:2px;align-items:flex-end;height:56px;margin:10px 0 6px}
+.hourbar i{flex:1;background:var(--or-bg);border-radius:2px 2px 0 0;min-height:2px;display:block}
+.hourbar i.hi{background:var(--or)}
+.hourlab{display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-3)}
+.recbox{background:var(--or-bg);border:1px solid var(--or-line);border-radius:var(--r-sm);
+  padding:13px 15px;margin-top:12px;font-size:13.5px;color:var(--ink-2)}
+.recbox b{color:var(--ink)}
+.srcbtns{display:flex;gap:9px;flex-wrap:wrap;margin-top:4px}
+dialog{border:0;padding:0;background:0;border-radius:var(--r);max-width:460px;width:92vw}
+dialog::backdrop{background:rgba(20,20,25,.4)}
+.sheet{background:var(--card);border-radius:var(--r);padding:24px 26px 20px;box-shadow:var(--sh-lg)}
+.sheet h3{font-size:18px;margin-bottom:9px}
+.sheet p{font-size:14px;color:var(--ink-2);margin-bottom:14px}
+.sheet input{width:100%;border:1px solid var(--line);border-radius:var(--r-sm);padding:11px 12px;
+  font-size:14px;outline:0;margin-bottom:11px}
+.sheetf{display:flex;gap:8px;justify-content:flex-end}
+
+@media(max-width:1200px){
+  .split{grid-template-columns:1fr}
+  .mapcol{position:static;order:-1}
+  .mapbox{height:340px}
+  .results{max-height:none;overflow:visible}
+  .lc.row{grid-template-columns:120px 1fr}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ---------- my life ---------- */
+.mapmode{position:absolute;top:12px;left:12px;z-index:12;display:flex;background:var(--card);
+  border:1px solid var(--line);border-radius:99px;overflow:hidden;box-shadow:var(--sh)}
+.mapmode button{border:0;background:0;font-size:13px;font-weight:560;padding:8px 15px;
+  cursor:pointer;color:var(--ink-2)}
+.mapmode button.on{background:var(--ink);color:#fff}
+.quiz{display:none;position:fixed;inset:0;background:rgba(20,20,25,.42);z-index:200;
+  align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)}
+.quiz.on{display:flex}
+.qcard{background:var(--card);border-radius:16px;max-width:620px;width:100%;padding:30px 32px 26px;
+  box-shadow:var(--sh-lg);position:relative;max-height:92vh;overflow-y:auto}
+.qx{position:absolute;top:16px;right:18px;border:0;background:0;font-size:17px;color:var(--ink-3);
+  cursor:pointer}
+.qhead{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.qhead span{font-size:11.5px;color:var(--ink-3);letter-spacing:.05em;text-transform:uppercase;
+  white-space:nowrap}
+.qbar{flex:1;height:3px;background:var(--line-2);border-radius:3px;overflow:hidden}
+.qbar i{display:block;height:100%;background:var(--or);transition:width .3s}
+.qcard h2{font-size:26px;font-weight:700;letter-spacing:-.03em;margin-bottom:7px}
+.qsub{font-size:14px;color:var(--ink-2);margin-bottom:20px;line-height:1.45}
+.qcontent{min-height:190px}
+.qbig{font-size:38px;font-weight:700;letter-spacing:-.03em;margin-bottom:10px}
+.qbig span{display:block;font-size:12.5px;font-weight:500;color:var(--ink-3);letter-spacing:0}
+.qcontent input[type=range]{width:100%;accent-color:var(--or)}
+.qhint{font-size:12.5px;color:var(--ink-3);margin-top:11px;line-height:1.45}
+.qlabel{font-size:12px;font-weight:640;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink-3);margin-bottom:8px}
+.qrow{display:flex;gap:8px;align-items:center}
+.qrow.wrap{flex-wrap:wrap}
+.qrow input,.qrow select{border:1px solid var(--line);border-radius:8px;padding:10px 12px;
+  font-size:14px;outline:0}
+.qrow input{flex:1}
+.qrow input:focus{border-color:var(--or)}
+.qchip{border:1px solid var(--line);background:var(--card);border-radius:99px;font-size:13px;
+  padding:7px 13px;cursor:pointer;color:var(--ink-2)}
+.qchip:hover{border-color:var(--ink-3)}
+.qchip.on{background:var(--or);color:#fff;border-color:var(--or)}
+.qchip.big{font-size:13.5px;padding:9px 15px}
+.qcheck{display:flex;align-items:center;gap:9px;font-size:14px;cursor:pointer;margin-top:14px}
+.qcheck input{accent-color:var(--or);width:16px;height:16px}
+.qres{font-size:13.5px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;
+  margin-top:6px;cursor:pointer}
+.qres:hover{background:var(--sub);border-color:var(--or)}
+.anchors{display:grid;gap:7px;margin-bottom:12px}
+.anchor{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:9px;
+  padding:9px 12px;font-size:14px}
+.anchor small{color:var(--ink-3);font-size:12px;margin-left:auto}
+.anchor button{border:0;background:0;color:var(--ink-3);cursor:pointer;font-size:13px}
+.qnav{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:22px;
+  padding-top:18px;border-top:1px solid var(--line-2)}
+.qnav button{border:0;background:var(--or);color:#fff;border-radius:9px;font-size:14.5px;
+  font-weight:600;padding:12px 22px;cursor:pointer}
+.qnav button.ghost{background:0;color:var(--ink-2);border:1px solid var(--line)}
+.qnav button.link{background:0;color:var(--ink-3);font-size:13px;font-weight:520;padding:12px 4px;
+  text-decoration:underline;text-underline-offset:3px}
+.qnav button.link:hover{color:var(--ink-2)}
+.qopts{display:grid;gap:8px}
+.qopt{display:block;width:100%;text-align:left;border:1px solid var(--line);background:var(--card);
+  border-radius:var(--r);padding:12px 15px;cursor:pointer;color:var(--ink)}
+.qopt:hover{border-color:var(--ink-3)}
+.qopt b{display:block;font-size:14.5px;font-weight:620;margin-bottom:2px}
+.qopt span{display:block;font-size:12.5px;color:var(--ink-3);line-height:1.4}
+.qopt.on{border-color:var(--or);background:var(--or-bg);box-shadow:0 0 0 1px var(--or)}
+.qopt.on span{color:var(--ink-2)}
+.why ul{margin:6px 0 0;padding-left:17px;font-size:13.5px;color:var(--ink-2);line-height:1.55}
+.why .bad{color:var(--or)}
+
+.tiles{display:flex;gap:8px;flex:1;min-width:0}
+.tile{flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;padding:9px 10px;
+  text-align:center;background:var(--card)}
+.tile .ic{color:var(--ink-3);margin-bottom:3px;display:flex;justify-content:center}
+.tile b{display:block;font-size:14.5px;font-weight:680;letter-spacing:-.01em;line-height:1.15}
+.tile span{font-size:11px;color:var(--ink-3);display:block;margin-top:1px}
+.tile.good b{color:var(--gr)}
+.pillrow{display:flex;gap:9px;align-items:center;margin-top:12px;flex-wrap:wrap}
+.pillbox{border:1px solid var(--line);border-radius:9px;padding:7px 12px;font-size:13px;
+  display:flex;align-items:center;gap:7px;background:var(--card)}
+.pillbox b{font-weight:660}
+.pillbox .sub{color:var(--ink-3);font-size:11.5px}
+.srcbtn{border:1px solid var(--line);border-radius:9px;padding:7px 12px;font-size:13px;
+  background:var(--card);cursor:pointer;display:flex;align-items:center;gap:7px;color:var(--ink)}
+.srcbtn:hover{border-color:var(--ink-3)}
+.tabrow{display:flex;gap:2px;flex-wrap:wrap;border-top:1px solid var(--line-2);margin-top:13px;padding-top:11px;
+  align-items:center}
+.tabrow button{border:0;background:0;font-size:13px;color:var(--ink-2);padding:6px 11px;
+  border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:6px}
+.tabrow button:hover{background:var(--sub)}
+.tabrow button.on{color:var(--ink);font-weight:640;background:var(--sub)}
+.thumbs{display:flex;gap:5px;padding:6px 0 0}
+.thumbs div{width:62px;height:46px;border-radius:6px;background:var(--sub);overflow:hidden;
+  position:relative;flex:none}
+.thumbs img{width:100%;height:100%;object-fit:cover}
+.thumbs .more{display:grid;place-items:center;font-size:12px;font-weight:640;color:var(--ink-2);
+  background:var(--sub)}
+/* ---------- compact rows ---------- */
+.rowc{display:grid;grid-template-columns:92px minmax(0,1fr) 66px 124px 158px 28px;gap:14px;
+  align-items:center;padding:11px 14px;background:var(--card);border:1px solid var(--line);
+  border-radius:var(--r);cursor:pointer}
+.rowc:hover{border-color:var(--ink-3);box-shadow:var(--sh)}
+.rowc.sel{border-color:var(--or);box-shadow:0 0 0 2px var(--or-bg)}
+.rowc .th{width:92px;height:68px;border-radius:8px;overflow:hidden;background:var(--sub)}
+.rowc .th img{width:100%;height:100%;object-fit:cover}
+.rowc h4{font-size:14.5px;font-weight:640;letter-spacing:-.01em}
+.rowc .hood{font-size:12.5px;color:var(--ink-2);margin-top:1px}
+.rowc .sp{font-size:12.5px;color:var(--ink-3);margin-top:2px}
+.rowc .mt{text-align:center}
+.rowc .mt b{display:block;font-size:20px;font-weight:740;letter-spacing:-.03em;line-height:1}
+.rowc .mt span{display:block;font-size:10.5px;color:var(--ink-3)}
+.rowc .mt i{display:block;font-size:9.5px;color:var(--ink-3);font-style:normal;margin-top:2px}
+.rowc .pr b{display:block;font-size:14px;font-weight:600}
+.rowc .pr span{display:block;font-size:13px;color:var(--ink-2);margin-top:2px}
+.rowc .st{font-size:12px}
+.rowc .st .tag{display:inline-block;padding:3px 9px;border-radius:99px;font-weight:620;
+  font-size:11.5px}
+.rowc .st .sub{display:block;color:var(--ink-3);margin-top:4px;font-size:11.5px}
+.t-new{background:var(--gr-bg);color:var(--gr)}
+.t-drop{background:var(--gr-bg);color:var(--gr)}
+.t-seen{background:var(--sub);color:var(--ink-2)}
+.t-rep{background:#F3EDFB;color:#6B44A8}
+.t-save{background:var(--am-bg);color:var(--am)}
+/* ---------- life summary on map ---------- */
+.lifecard{position:absolute;top:12px;right:12px;background:var(--card);border:1px solid var(--line);
+  border-radius:12px;padding:13px 15px;box-shadow:var(--sh-lg);max-width:250px;z-index:12}
+.lifecard h6{font-size:13.5px;font-weight:660;margin:0 0 9px;display:flex;align-items:center;gap:7px}
+.lifecard .r{display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:var(--ink-2);
+  margin-bottom:7px;line-height:1.4}
+.lifecard .r b{color:var(--ink);font-weight:660}
+.lifecard .ok{color:var(--gr);flex:none}
+
+/* ---------- featured card layout (match reference) ---------- */
+.feat .top{align-items:flex-start}
+.feat .phcol{width:284px;flex:none;padding:12px 0 12px 12px;display:grid;gap:6px}
+.feat .ph{width:100%;height:238px;min-height:0;border-radius:9px;overflow:hidden;position:relative}
+.feat .ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.feat .body{padding:14px 16px 14px 14px}
+.feat .hd{gap:14px}
+.feat h3{font-size:20px;font-weight:680;letter-spacing:-.025em;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;max-width:280px}
+/* Two prices side by side never fit beside a long address; stack them. */
+.feat .prices{display:block;text-align:right;flex:none;width:172px}
+.feat .prices .pr .v{white-space:nowrap;font-size:16px;font-weight:600}
+.feat .prices .pr.act{padding-left:0;border-left:0;border-top:1px solid var(--line);
+  margin-top:8px;padding-top:8px}
+.feat .prices .pr.act .v{font-size:21px;font-weight:700}
+.feat .prices .l{white-space:normal;line-height:1.35;justify-content:flex-end;flex-wrap:wrap}
+.feat .hd{align-items:flex-start;gap:16px}
+.feat .hd > div:first-child{min-width:0;flex:1}
+
+/* ---------- recommendation layer ---------- */
+/* picks() can return one -- a lone card stretched across a third of the row with
+   two empty cells beside it read as a rendering failure. */
+.recs{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:11px;
+  margin-bottom:13px}
+.reccard{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  padding:13px 15px;cursor:pointer;display:grid;gap:7px;transition:.15s}
+.reccard:hover{border-color:var(--or);box-shadow:var(--sh-lg)}
+.reccard .kind{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--or);display:flex;align-items:center;gap:6px}
+.reccard .hdr{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.reccard h5{font-size:15px;font-weight:660;margin:0;letter-spacing:-.015em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reccard .m{font-size:21px;font-weight:740;letter-spacing:-.03em;flex:none}
+.reccard .m i{font-size:11px;font-weight:600;font-style:normal;color:var(--ink-3);margin-left:3px}
+.reccard p{font-size:12.5px;color:var(--ink-2);line-height:1.4}
+.recs .head{grid-column:1/-1;display:flex;align-items:baseline;gap:10px;margin-bottom:1px}
+.recs .head b{font-size:17px;font-weight:700;letter-spacing:-.02em}
+.recs .head span{font-size:12.5px;color:var(--ink-3)}
+/* reason lines */
+.rz{display:grid;gap:5px;margin-top:11px}
+.rz div{display:flex;gap:8px;align-items:flex-start;font-size:13.5px;color:var(--ink-2)}
+.rz .dot{width:8px;height:8px;border-radius:50%;flex:none;margin-top:5px}
+.rz .g .dot{background:var(--gr)} .rz .y .dot{background:var(--am)}
+.rz .r .dot{background:var(--or)}
+.matchbig{display:flex;align-items:baseline;gap:9px}
+.matchbig b{font-size:34px;font-weight:740;letter-spacing:-.035em;line-height:1}
+.matchbig span{font-size:14px;font-weight:620;color:var(--ink-2)}
+.conf{font-size:11px;color:var(--ink-3);border:1px solid var(--line);border-radius:99px;
+  padding:2px 8px;margin-left:2px}
+.blocked{background:var(--or-bg);border:1px solid var(--or-line);border-radius:9px;
+  padding:9px 12px;font-size:13px;color:#8A3711;margin-top:10px}
+.blocked b{font-weight:660}
+.brkbtn{border:0;background:0;color:var(--or);font-size:12.5px;cursor:pointer;padding:0;
+  margin-top:9px;text-decoration:underline}
+</style>
+
+<header><div class="wrap"><div class="hrow">
+  <div class="logo" id="logo">
+    <span class="mk"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="2.2" stroke-linejoin="round">
+      <path d="M4 11 12 4l8 7v9H4Z"/></svg></span>
+    <b>Huntly</b>
+    <span class="tag">Fewer listings.<br>Fewer surprises.</span>
+  </div>
+  <div class="searchbar">
+    <label class="sfield">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/>
+        <path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" placeholder="Search by neighborhood, building, or keyword">
+    </label>
+    <span class="sdiv"></span>
+    <label class="sfield" style="flex:0 0 190px">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2"><path d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11Z"/>
+        <circle cx="12" cy="10" r="2.4"/></svg>
+      <input value="San Francisco, CA" readonly style="cursor:default">
+    </label>
+  </div>
+  <nav>
+    <a class="on" data-nav="search">Search</a>
+    <a data-nav="hunt">My Hunt</a>
+    <a data-nav="saved">Saved</a>
+    <a data-nav="tours">Tours</a>
+    <a data-nav="reviews">Reviews</a>
+  </nav>
+  <button class="addbtn" id="quizbtn" style="border-color:var(--ink);color:var(--ink)">Set up my life</button>
+  <button class="addbtn" id="addbtn">Add apartment
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+  <span class="avatar">SP</span>
+</div></div></header>
+
+<div class="wrap">
+  <div class="strip" id="strip"></div>
+
+  <div class="filterbar" id="filterbar">
+    <div class="fdrop" data-f="price"><button class="fbtn" id="fb-price">Price
+      <svg class="cv" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2.6" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg></button>
+      <div class="fmenu"><div class="row2">
+        <input type="number" id="pmin" placeholder="Min"><span>–</span>
+        <input type="number" id="pmax" placeholder="Max"></div></div></div>
+    <div class="fdrop" data-f="beds"><button class="fbtn" id="fb-beds">Beds
+      <svg class="cv" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2.6" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg></button>
+      <div class="fmenu" id="bedmenu"></div></div>
+    <div class="fdrop" data-f="baths"><button class="fbtn" id="fb-baths">Baths
+      <svg class="cv" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2.6" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg></button>
+      <div class="fmenu" id="bathmenu"></div></div>
+    <div class="fdrop" data-f="sort"><button class="fbtn act" id="fb-sort">Best match
+      <svg class="cv" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2.6" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg></button>
+      <div class="fmenu wide" id="sortmenu"></div></div>
+    <div class="fdrop" data-f="src"><button class="fbtn" id="fb-src">Source
+      <svg class="cv" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2.6" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg></button>
+      <div class="fmenu" id="srcmenu"></div></div>
+    <div class="fdrop" data-f="more"><button class="fbtn" id="fb-more">More
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg></button>
+      <div class="fmenu" id="moremenu"></div></div>
+    <div class="toggle">
+      <button id="t-base" class="on">Base rent</button>
+      <button id="t-act">Actual monthly</button>
+    </div>
+    <button class="infodot" id="infodot">i</button>
+  </div>
+
+  <div class="split">
+    <div>
+      <div class="recs" id="recs"></div>
+      <div class="results" id="results"></div>
+    </div>
+    <div class="mapcol"><div class="mapbox">
+      <div class="mapmode">
+        <button id="mode-apts" class="on">Apartments</button>
+        <button id="mode-life" style="display:none">📍 Routes to my places</button>
+      </div>
+      <canvas id="map"></canvas>
+      <div class="pinlayer" id="pins"></div>
+      <div class="maplayers" id="maplayers"><h5>Map layers</h5>
+        <label><span class="ic" style="color:var(--or)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2"><path d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11Z"/></svg>
+          </span>Listings<input type="radio" name="ml" value="listings" checked></label>
+        <label><span class="ic">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linejoin="round"><path d="M20 14a8 8 0 1 1-10-10 7 7 0 0 0 10 10Z"/>
+          </svg></span>After dark<input type="radio" name="ml" value="dark"></label>
+        <div style="height:1px;background:var(--line);margin:7px 0"></div>
+        <label><span class="ic">⛺</span>Encampments
+          <input type="radio" name="ml" value="encampment"></label>
+        <label><span class="ic">🚗</span>Car break-ins
+          <input type="radio" name="ml" value="break_in"></label>
+        <label><span class="ic">⚠</span>Violent incidents
+          <input type="radio" name="ml" value="violent"></label>
+        <label><span class="ic">🧹</span>Cleaning requests
+          <input type="radio" name="ml" value="cleaning"></label>
+      </div>
+      <div class="mapzoom"><button id="zin">+</button><button id="zout">−</button></div>
+      <div class="maplegend" id="maplegend" hidden></div>
+      <div class="lifecard" id="lifecard" style="display:none"></div>
+      <div class="mapcount" id="mapcount"></div>
+    </div></div>
+  </div>
+</div>
+
+<div class="pillars"><div class="wrap"><div class="pillrow">
+  <div class="pill"><span class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/>
+    <path d="M3 20a6 6 0 0 1 12 0M17 11a3 3 0 1 0 0-6M21 20a5 5 0 0 0-4-4.9"/></svg></span>
+    <div><h4>Residents</h4><p>Ratings and reviews from people who live there.</p></div></div>
+  <div class="pill"><span class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4v16M8.5 8.2A3 3 0 0 1 12 6.5c2 0 3 1 3 2.3 0 3-6 2-6 5.2 0 1.4 1.3 2.5 3 2.5a3.4 3.4 0 0 0 3.2-1.7"/></svg></span>
+    <div><h4>Costs</h4><p>See the actual monthly cost, not just base rent.</p></div></div>
+  <div class="pill"><span class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+    <path d="M20 14a8 8 0 1 1-10-10 7 7 0 0 0 10 10Z"/></svg></span>
+    <div><h4>Block</h4><p>Get the real story after dark from city records.</p></div></div>
+  <div class="pill"><span class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+    <path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6Z"/><path d="m9 12 2 2 4-4"/></svg></span>
+    <div><h4>Landlord</h4><p>Check the building's record before you sign.</p></div></div>
+</div></div></div>
+
+<div id="drawer"><div class="scrim" id="scrim"></div><div class="panel" id="panel"></div></div>
+
+<dialog id="adddlg"><div class="sheet">
+  <h3>Add an apartment</h3>
+  <p>Paste a listing URL or an address from anywhere. We create one record and pull the
+    city's data for that building.</p>
+  <input id="addin" placeholder="https://zillow.com/…  or  376 Ellis St">
+  <div id="dupmsg"></div>
+  <div class="sheetf"><button class="viewbtn ghost" id="addcancel">Cancel</button>
+    <button class="viewbtn" id="addgo">Add to hunt</button></div>
+</div></dialog>
+
+<dialog id="infodlg"><div class="sheet">
+  <h3>How "actual monthly" works</h3>
+  <p>Base rent is what the listing advertises. <b>Actual monthly</b> adds what it doesn't:
+    gas and electricity estimated from comparable SF units, plus any mandatory fees the
+    source published.</p>
+  <p>Utilities are a range because building attributes explain only about a third of the
+    variation between similar units. Where a source gave us a real total, we use it and mark
+    it verified. No California law requires all-in pricing, so anything we couldn't confirm
+    stays marked unverified.</p>
+  <div class="sheetf"><button class="viewbtn" id="infoclose">Got it</button></div>
+</div></dialog>
+
+<script>
+const A = /*__DATA__*/;
+const PLACES = /*__PLACES__*/;
+const STREET_GRID = /*__GRID__*/;
+/*__APP__*/
+/*__LIFE__*/
+</script>
+
+<div class="quiz" id="quiz"><div class="qcard"><div id="qbody"></div>
+  <button class="qx" id="qx">✕</button></div></div>
