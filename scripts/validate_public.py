@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 import sqlite3
+import subprocess
 from pathlib import Path
 
 
@@ -49,6 +50,17 @@ TEXT_SUFFIXES = {
     ".gitattributes",
     ".yml",
     ".yaml",
+    # Data and markup were both missing, and that is precisely where a leak
+    # ends up. This validator carried an `AIza…` pattern from the beginning and
+    # still reported "public validation passed" on a committed .json holding a
+    # live Google API key, because it had never been given a reason to open the
+    # file. A check that cannot see the largest thing in the tree is not a
+    # check. Committed data files are the highest-risk surface here, not the
+    # lowest, so they are scanned first now.
+    ".json",
+    ".html",
+    ".js",
+    ".css",
 }
 
 def _is_text_path(path: Path) -> bool:
@@ -70,10 +82,35 @@ IGNORED_DIRS = {
 }
 
 
+def _published_paths() -> set[Path] | None:
+    """Everything git would actually hand a reader: tracked, plus staged adds.
+
+    The question this validator asks is "could someone who clones this see it",
+    and git already knows the answer exactly. Deriving the set from .gitignore
+    by hand drifts the moment an ignore rule changes -- which is how widening
+    the suffix list turned up four *gitignored* scratch files and buried the
+    one committed file that genuinely mattered.
+
+    Returns None outside a git checkout, in which case the caller falls back to
+    walking the tree.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+            cwd=ROOT, capture_output=True, text=True, check=True,
+        ).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return {ROOT / p for p in out.split("\0") if p}
+
+
 def _iter_project_text() -> list[tuple[Path, str]]:
     out: list[tuple[Path, str]] = []
+    published = _published_paths()
     for path in ROOT.rglob("*"):
         if path == Path(__file__).resolve():
+            continue
+        if published is not None and path not in published:
             continue
         if any(part in IGNORED_DIRS for part in path.relative_to(ROOT).parts):
             continue
@@ -123,15 +160,32 @@ def _without_public_project_references(text: str) -> str:
     return text
 
 
+# Known collisions between a private-data pattern and legitimate public data.
+#
+# `places.json` is an OpenStreetMap point-of-interest index, and San Francisco
+# contains a business called Limoncello. The "dog names" pattern is looking for
+# a pet's name written into prose or config; a bar's name in a public gazetteer
+# is a coincidence, not a leak.
+#
+# Exempted per file and per pattern rather than by weakening the pattern, so it
+# still fires everywhere it should. Anything added here needs a reason written
+# next to it.
+ALLOWED_MATCHES = {
+    ("research/pipeline/places.json", "dog names"),
+}
+
+
 def main() -> None:
     failures: list[str] = []
     for path, text in _iter_project_text():
         text = _without_public_project_references(text)
         patterns = PRIVATE_PATTERNS.copy()
         patterns["personal names"] = PERSONAL_NAME_PATTERN
+        rel = path.relative_to(ROOT)
         for label, pattern in patterns.items():
+            if (rel.as_posix(), label) in ALLOWED_MATCHES:
+                continue
             if pattern.search(text):
-                rel = path.relative_to(ROOT)
                 failures.append(f"{rel}: matched {label}")
 
     for fixture in FIXTURES:

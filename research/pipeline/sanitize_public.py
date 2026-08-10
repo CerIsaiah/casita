@@ -42,6 +42,27 @@ OUT = HERE / "app_data.public.json"
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
 PHONE = re.compile(r"\(?\b\d{3}\)?[ .-]\d{3}[ .-]\d{4}\b")
 
+# Credentials that arrive *inside* scraped content.
+#
+# Three Zillow listings carried their hero image as a Google static-map URL
+# with an API key in the query string. Zillow's key, not ours -- we never held
+# one -- but scraping it verbatim and committing it republished somebody else's
+# credential to a public repo, which GitHub's secret scanner noticed before we
+# did.
+#
+# The lesson is narrower than "check for secrets": data pulled off another
+# site can contain anything that site put in it, including its own keys, and a
+# sanitiser that only looks for the personal data *we* went out and collected
+# will miss it every time.
+CREDENTIAL = re.compile(
+    r"(?:AIza[0-9A-Za-z_\-]{10,}"          # Google
+    r"|sk-[A-Za-z0-9]{20,}"                # OpenAI-style
+    r"|xox[baprs]-[A-Za-z0-9-]{10,}"       # Slack
+    r"|gh[pousr]_[A-Za-z0-9]{20,}"         # GitHub
+    r"|(?:api[_-]?key|access[_-]?token|secret)=[A-Za-z0-9_\-]{16,})",
+    re.I,
+)
+
 
 def scrub_text(s):
     """Free text currently carries no contacts. Enforce it rather than trust it."""
@@ -53,7 +74,7 @@ def scrub_text(s):
 
 def main():
     data = json.load(open(SRC))
-    names = phones = texts = 0
+    names = phones = texts = creds = 0
 
     for a in data:
         ll = a.get("landlord")
@@ -82,6 +103,21 @@ def main():
             del a["phone"]
             phones += 1
 
+        # Drop, rather than redact, any image whose URL carries a credential.
+        # Redacting the key would leave a URL that 403s, and every one of these
+        # was a satellite static-map standing in for a photograph anyway -- not
+        # a picture of the unit, and not something the photo count should have
+        # been treating as evidence that the listing showed you anything.
+        if a.get("photos"):
+            kept = [u for u in a["photos"] if not CREDENTIAL.search(u or "")]
+            if len(kept) != len(a["photos"]):
+                creds += len(a["photos"]) - len(kept)
+                a["photos"] = kept
+        if a.get("photo") and CREDENTIAL.search(a["photo"]):
+            a["photo"] = a["photos"][0] if a.get("photos") else None
+            if a["photo"] is None:
+                del a["photo"]
+
         for f in ("desc", "special", "shared_why", "rc_why", "name"):
             if isinstance(a.get(f), str):
                 clean = scrub_text(a[f])
@@ -94,10 +130,12 @@ def main():
     # Prove it, rather than asserting it. A sanitiser that silently stopped
     # working would look exactly like a sanitiser that had nothing to do.
     blob = OUT.read_text()
-    leaks = {"email": len(EMAIL.findall(blob)), "phone": len(PHONE.findall(blob))}
+    leaks = {"email": len(EMAIL.findall(blob)), "phone": len(PHONE.findall(blob)),
+             "credential": len(CREDENTIAL.findall(blob))}
     print(f"  owner names removed : {names:,}")
     print(f"  phone numbers removed: {phones:,}  (kept as has_phone)")
     print(f"  free-text scrubs     : {texts:,}")
+    print(f"  credentialed images  : {creds:,}  (dropped)")
     print(f"  wrote {OUT.name}  ({OUT.stat().st_size / 1e6:.1f} MB)")
     print(f"  residual in output   : {leaks}")
     if any(leaks.values()):
