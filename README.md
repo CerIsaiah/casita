@@ -1,4 +1,4 @@
-# Casita - an apartment hunter that understands you
+# 🏠 Casita - the apartment site that understands you
 <img width="1510" height="825" alt="image" src="https://github.com/user-attachments/assets/f0c720bc-a94e-4c89-a1c3-42dd5cbc15c8" />
 
 **[Live demo →](https://casita-henna.vercel.app)**
@@ -134,6 +134,7 @@ The demo is a single static page with no framework and no build step, so hosting
 is free and stays free. The costs are all on the data side, and they're one-off
 per refresh rather than per visitor:
 
+| Service | Cost |
 |---|---|
 | Apify actor (Apartments.com) | a few cents per full sweep |
 | RentCast (owner lookups) | 50 free/month, then $0.20/request |
