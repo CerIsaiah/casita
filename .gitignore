@@ -48,12 +48,20 @@ research/pipeline/*.sqlite
 research/pipeline/*.sqlite-shm
 research/pipeline/*.sqlite-wal
 research/pipeline/*.json
+# ...except the inputs a clone needs to build the page without scraping. The
+# sanitised set carries no owner names, no phone numbers and no landlord field
+# beyond a registration flag; it is the same corpus already published at the
+# hosted demo, so committing it exposes nothing new and makes the repo
+# runnable instead of merely readable.
+!research/pipeline/app_data.public.json
+!research/pipeline/street_grid.json
+!research/pipeline/places.json
 research/pipeline/huntly_built.html
-# The OSM extract (72MB) and the routing graph derived from it. Both are
-# rebuildable from build_walk_graph.py in one command.
+# The OSM extract (72MB) is rebuildable and huge. The routing graph derived
+# from it is committed: 1.5MB, and without it every distance silently degrades
+# to a straight line, which is the one claim this project exists to stop making.
 research/pipeline/sf.osm.gz
 research/pipeline/walk_tiles/
-research/walk_graph.json.gz
 # Built demo pages inline the entire scraped data set -- ~6.7MB each, including
 # the owner-entity names add_landlord.py reads out of public records. Those are
 # live-path only, by the same rule that keeps them out of fixtures/demo.sqlite,

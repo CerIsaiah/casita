@@ -31,7 +31,7 @@ def read(name):
     return open(HERE / name, encoding="utf-8").read()
 
 
-def build(data_json, proto=False, new=False):
+def build(data_json, proto=False, new=False, data_src="app_data.json"):
     # casita.html is the redesign; huntly.html is the old dashboard, kept
     # buildable until the redesign replaces it outright.
     html = read("casita.html" if new else "huntly.html")
@@ -67,7 +67,7 @@ def build(data_json, proto=False, new=False):
         html = html.replace('"walk_graph.json"', f'"walk_graph.json?v={stamp}"')
 
     scraped = datetime.datetime.fromtimestamp(
-        (HERE / "app_data.json").stat().st_mtime)
+        (HERE / data_src).stat().st_mtime)
     anchor = '<meta charset="utf-8">'
     assert anchor in html, "casita.html no longer opens with the charset meta"
     html = html.replace(
@@ -90,6 +90,15 @@ def main():
     src = "app_data.public.json" if public else "app_data.json"
     if public and not (HERE / src).exists():
         sys.exit("run sanitize_public.py first -- refusing to publish raw data")
+
+    # A fresh clone has no app_data.json: the raw scrape carries owner names and
+    # phone numbers and is deliberately not in the repo. The sanitised fixture
+    # is, so fall back to it rather than failing. Someone who has just cloned
+    # this should be able to build the page and look at it; the alternative is a
+    # repo you can read but not run.
+    if not public and not (HERE / src).exists():
+        src = "app_data.public.json"
+        print("   no local scrape found - building from the sanitised fixture")
     data = json.load(open(HERE / src))
     data_json = json.dumps(data, separators=(",", ":"))
 
@@ -97,7 +106,7 @@ def main():
     if public:
         out = RESEARCH / "public" / "index.html"
         out.parent.mkdir(exist_ok=True)
-        html, scraped = build(data_json, new=True)
+        html, scraped = build(data_json, new=True, data_src=src)
         # The page checks this before offering anything that needs a server.
         html = html.replace('<meta charset="utf-8">',
                             '<meta charset="utf-8">\n'
@@ -116,7 +125,7 @@ def main():
         targets = [(RESEARCH / "proto-demo.html", True, False)]
 
     for path, proto, new in targets:
-        html, scraped = build(data_json, proto=proto, new=new)
+        html, scraped = build(data_json, proto=proto, new=new, data_src=src)
         path.write_text(html, encoding="utf-8")
         print(f"   {len(data):,} apartments -> {path.name}"
               f"  (data scraped {scraped:%Y-%m-%d %H:%M})")

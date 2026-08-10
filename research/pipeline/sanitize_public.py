@@ -57,9 +57,25 @@ def main():
 
     for a in data:
         ll = a.get("landlord")
-        if isinstance(ll, dict) and "name" in ll:
-            del ll["name"]
-            names += 1
+        if isinstance(ll, dict):
+            if "name" in ll:
+                names += 1
+            # Reduced to the registration flag and nothing else.
+            #
+            # Dropping the name alone left `since` and `portfolio` behind, and
+            # those are still products of an owner-name lookup -- an
+            # acquisition date and a portfolio count, attached to a specific
+            # address, is most of the way back to the person. AGENTS.md says
+            # not to commit a fixture built from those lookups, and this file
+            # now writes a committed fixture, so it has to mean it.
+            #
+            # Nothing is lost. Casita reads `landlord.conf` in exactly two
+            # places -- the scam auditor's corroboration list and one scoring
+            # bump -- and never touches the other fields. They were only ever
+            # rendered by the old huntly dashboard.
+            a["landlord"] = {"conf": ll.get("conf")} if ll.get("conf") else None
+            if a["landlord"] is None:
+                del a["landlord"]
 
         if a.get("phone"):
             a["has_phone"] = True
@@ -86,12 +102,15 @@ def main():
     print(f"  residual in output   : {leaks}")
     if any(leaks.values()):
         raise SystemExit("refusing to ship: contact data still present")
-    if "landlord" in blob and '"name"' in blob:
-        # `name` is also the building name, which is fine; only flag if a
-        # landlord object still carries one.
-        for a in json.loads(blob):
-            if isinstance(a.get("landlord"), dict) and a["landlord"].get("name"):
-                raise SystemExit("refusing to ship: owner name still present")
+    # `name` is also the building name, which is fine, so this checks the
+    # landlord objects themselves rather than grepping the blob. Anything on a
+    # landlord other than `conf` is a leak by the rule above, so the assertion
+    # is exact rather than a list of fields to remember to add to.
+    for a in json.loads(blob):
+        ll = a.get("landlord")
+        if isinstance(ll, dict) and set(ll) - {"conf"}:
+            raise SystemExit(
+                f"refusing to ship: landlord carries {sorted(set(ll) - {'conf'})}")
     print("  clean")
 
 
