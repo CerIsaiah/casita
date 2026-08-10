@@ -202,6 +202,11 @@ a{color:inherit}
 .q-prio.on .q-priobtn .ic,.q-amen.must .ic,.q-amen.nice .ic,.q-kind.on .ic{color:currentColor}
 .hoodchip.on em{color:var(--accent)}
 .hoodchip.small{font-size:11.5px;padding:5px 11px}
+/* The saved filter sits with the area chips because that is where filtering
+   already lives, but it is a different kind of filter - a list you built, not
+   a place - so it carries the heart and its own colour when active. */
+.hoodchip.saved.on{background:var(--good-bg);border-color:#D6EADF;color:var(--good)}
+.hoodchip.saved.on em{color:var(--good)}
 .hoodrow.sub{padding-left:2px}
 .hoodnote{font-size:11.5px;color:var(--ink-3);line-height:1.45;margin-top:1px}
 
@@ -402,6 +407,21 @@ a{color:inherit}
 .leadin{padding-top:4px}
 .leadin h2{font-size:15px;font-weight:660;letter-spacing:-.01em;margin:0 0 3px}
 .leadin p{font-size:12.5px;line-height:1.5;color:var(--ink-3);margin:0;max-width:56ch}
+
+/* What your must-haves are costing you. Warm rather than red: this is a
+   consequence of something the reader chose, not a fault. */
+.gate{margin-top:11px;border:1px solid #EFE0C4;background:var(--warm-bg);
+  border-radius:var(--r-sm);padding:11px 13px}
+.gate-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.gate-head b{font-size:13px;font-weight:660;color:#7A5312}
+.gate-cta{margin-left:auto;border:1px solid #E3CFA6;background:var(--card);
+  border-radius:99px;font:inherit;font-size:11.5px;font-weight:640;color:#7A5312;
+  padding:4px 11px;cursor:pointer;white-space:nowrap}
+.gate-cta:hover{border-color:var(--warm)}
+.gate-rows{list-style:none;margin:8px 0 0;padding:0;display:flex;gap:7px;flex-wrap:wrap}
+.gate-rows li{font-size:11.5px;color:#8A6320;background:var(--card);
+  border:1px solid #EFE0C4;border-radius:99px;padding:3px 10px}
+.gate-rows em{font-style:normal;font-weight:700;font-variant-numeric:tabular-nums}
 
 .viz{position:relative;border-radius:var(--r);overflow:hidden;flex:none;height:0;
   border:1px solid var(--line);box-shadow:var(--sh);background:var(--sub);
@@ -671,6 +691,32 @@ dialog::backdrop{background:rgba(20,20,25,.42);backdrop-filter:blur(2px)}
   .q-budget{grid-template-columns:1fr;gap:16px}
   .q-card h1{font-size:27px}
   .reasons{grid-template-columns:1fr}
+
+  /* The header did not fit and had nothing to give: brand, a 173px button and
+     the theme switcher came to 419px inside a 411px screen, so the whole page
+     scrolled sideways by eight pixels. The button keeps its icon and loses its
+     words - it is the only control up here whose meaning survives that, and it
+     carries an aria-label so the name is still available to a screen reader. */
+  .top .btn{font-size:0;gap:0;padding:9px 11px}
+  .top .btn svg{margin:0}
+
+  /* A 44vh map on a phone is most of the screen before you have read anything.
+     Tall enough to orient, short enough that the listing stays the subject. */
+  .viz.is-map{height:34vh;min-height:220px}
+
+  /* Thumb-sized targets, and a strip that admits it scrolls. */
+  .film-card{width:104px}
+  .film-arrow{display:none}
+  .tabs{gap:5px}
+  .tab{padding:8px 12px;font-size:12.5px}
+
+  /* Stacked, the gate reads as a paragraph rather than a row. */
+  .gate-head{flex-direction:column;align-items:flex-start;gap:7px}
+  .gate-cta{margin-left:0}
+
+  .actions{flex-wrap:wrap}
+  .actions .btn{flex:1 1 auto;justify-content:center}
+  .trust-n{font-size:26px}
 }
 </style>
 
@@ -691,7 +737,7 @@ dialog::backdrop{background:rgba(20,20,25,.42);backdrop-filter:blur(2px)}
       San Francisco, CA
     </div>
     <div class="top-sp"></div>
-    <button class="btn" onclick="CASITA.editPriorities()">
+    <button class="btn" onclick="CASITA.editPriorities()" aria-label="Edit my priorities">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         stroke-width="2" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h9M17 18h3"/>
         <circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="15" cy="18" r="2"/></svg>

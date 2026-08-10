@@ -39,10 +39,25 @@
     hood: null,       // a specific area inside it, or null for the whole district
     saved: new Set(),
     passed: new Set(),
+    onlySaved: false, // showing the shortlist, or only the ones you kept
   };
 
   const $ = (id) => document.getElementById(id);
   const cur = () => S.list[S.i] || null;
+
+  /* ---------- saved places ----------
+     Kept in localStorage rather than memory. A saved list that a refresh
+     empties is worse than no saved list: it invites you to rely on it and then
+     quietly loses the one flat you wanted to come back to. Shortlisting a
+     place to view is a decision made over days, not in one sitting. */
+  const SAVED_KEY = "casita.saved.v1";
+  function loadSaved() {
+    try { return new Set(JSON.parse(localStorage.getItem(SAVED_KEY)) || []); }
+    catch { return new Set(); }
+  }
+  function persistSaved() {
+    try { localStorage.setItem(SAVED_KEY, JSON.stringify([...S.saved])); } catch {}
+  }
 
   /* ---------- theme ----------
      Three states. "System" is the default and is a real setting, not the
@@ -129,11 +144,13 @@
   }
 
   const SHOW = 60;
-  let counts = { missed: 0, rooms: 0, gone: 0, eligible: 0 };
+  const blank = () => ({ missed: 0, rooms: 0, gone: 0, eligible: 0,
+                         by: {}, overBudget: [] });
+  let counts = blank();
 
   function rank(all) {
     const best = new Map();
-    counts = { missed: 0, rooms: 0, gone: 0, eligible: 0 };
+    counts = blank();
     for (const a of all) {
       if (S.passed.has(a.id)) continue;
       const f = S.M.score(a);
@@ -141,11 +158,34 @@
       // Three different reasons to step aside, counted separately because they
       // mean different things to a reader: you ruled it out, we can't tell you
       // what it is, or it is not on the market any more.
-      if (f.blocked) { counts.missed++; continue; }
+      if (f.blocked) {
+        counts.missed++;
+        /* Which wall, not just how many. "1,769 ruled out" is a number a
+           reader can do nothing with; "1,540 of them are over your ceiling,
+           and $250 more would return 300 of those" is a decision. The rents
+           are kept so the interface can answer the second part honestly rather
+           than inventing a round number to suggest. */
+        for (const r of f.fails) counts.by[r.key] = (counts.by[r.key] || 0) + 1;
+        if (f.fails.some((r) => r.key === "budget")) {
+          const rent = a.act ? a.act[0] : a.rent;
+          if (rent) counts.overBudget.push(rent);
+        }
+        continue;
+      }
       if (!isWholeHome(a)) { counts.rooms++; continue; }
       // Recommending something the last sweep could not find wastes the one
       // resource this product is meant to save.
       if (a.avail === "gone" || a.avail === "no_units") { counts.gone++; continue; }
+      // The saved view is a view of things you already chose, so it ignores
+      // the area filter -- hiding a flat you saved because you have since
+      // clicked a different district would look like losing it.
+      if (S.onlySaved) {
+        if (!S.saved.has(a.id)) continue;
+        const k0 = (a.addr || a.id).toLowerCase();
+        const p0 = best.get(k0);
+        if (!p0 || f.score > p0.f.score) best.set(k0, { a, f });
+        continue;
+      }
       const area = HOODS.areaOf(a);
       if (S.district && HOODS.districtOf(area) !== S.district) continue;
       if (S.hood && area !== S.hood) continue;
@@ -176,7 +216,9 @@
 
     el.innerHTML = `
       <div class="hoodrow">
-        <button class="hoodchip ${!S.district ? "on" : ""}" data-district="">All of SF</button>
+        <button class="hoodchip ${!S.district && !S.onlySaved ? "on" : ""}" data-district="">All of SF</button>
+        ${S.saved.size ? `<button class="hoodchip saved ${S.onlySaved ? "on" : ""}"
+          data-saved="1">${ICON.svg("heart", 13)}Saved <em>${S.saved.size}</em></button>` : ""}
         ${ds.map((d) => `<button class="hoodchip ${d.name === S.district ? "on" : ""}"
           data-district="${esc(d.name)}">${ICON.svg(d.icon, 14)}${esc(d.name)}
           <em>${d.n}</em></button>`).join("")}
@@ -199,10 +241,80 @@
     const n = (S.list || []).length;
     if (!n) return "";
     const where = S.hood || S.district || "San Francisco";
+    if (S.onlySaved) {
+      return `<div class="leadin">
+        <h2>Saved</h2>
+        <p>${n} place${n === 1 ? "" : "s"} you kept, from anywhere in the city - the area
+           filter is ignored here so a place cannot disappear because you changed districts.</p>
+      </div>`;
+    }
     return `<div class="leadin">
       <h2>Your shortlist</h2>
       <p>${n} place${n === 1 ? "" : "s"} in ${esc(where)} that clear your must-haves,
          ordered by how well each fits what you said matters.</p>
+      ${gateHTML()}
+    </div>`;
+  }
+
+  /* ---------- what your requirements cost you ----------
+     A hard requirement is the only thing in this product that removes a place
+     from view entirely, so it is the one number the reader most deserves to
+     see argued rather than asserted. This shows which wall did the removing,
+     and - when it is the budget - what a specific increase would buy back,
+     computed from the actual rents that were excluded rather than from a
+     round number chosen to look helpful.
+
+     It only appears when the walls are doing real work. Ruling out a handful
+     of places is the requirement behaving normally and does not need a panel. */
+  const GATE_LABEL = {
+    budget: "over your maximum", beds: "wrong bedroom count",
+    commute: "past your commute limit", pets: "no pets", ac: "no A/C",
+    wd: "no in-unit laundry", dishwasher: "no dishwasher",
+    outdoor: "no outdoor space", storage: "no storage",
+    furnished: "not furnished", rc: "not rent-controlled",
+  };
+
+  function gateHTML() {
+    const total = counts.missed;
+    // Below a third of the field this is just a filter working.
+    if (!total || total < (counts.eligible + total) * 0.34) return "";
+
+    const rows = Object.entries(counts.by).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    if (!rows.length) return "";
+
+    let unlock = "";
+    const over = counts.overBudget;
+    if (over.length >= 20 && S.P.maxBudget) {
+      // The smallest step that returns a number worth acting on. Judged in
+      // places, not as a share of the excluded pool: when the budget is far
+      // under the market that pool is enormous, and asking for a percentage of
+      // it forces the suggestion up to a jump nobody would make.
+      for (const step of [100, 200, 300, 500, 750, 1000, 1500]) {
+        const gained = over.filter((r) => r <= S.P.maxBudget + step).length;
+        if (gained >= 25) {
+          unlock = `<button class="gate-cta" onclick="CASITA.editPriorities()">
+            ${money(S.P.maxBudget + step)} would return ${num(gained)}</button>`;
+          break;
+        }
+      }
+    }
+
+    // When one wall accounts for effectively all of it, name it in the
+    // sentence instead of repeating the same number underneath as a chip.
+    const soleKey = rows.length === 1 || rows[0][1] >= total * 0.95 ? rows[0][0] : null;
+    const head = soleKey === "budget" && S.P.maxBudget
+      ? `${num(total)} places are over your ${money(S.P.maxBudget)} maximum`
+      : soleKey
+        ? `${num(total)} places are out - ${esc(GATE_LABEL[soleKey] || soleKey)}`
+        : `${num(total)} places are hidden by your must-haves`;
+
+    return `<div class="gate">
+      <div class="gate-head">
+        <b>${head}</b>
+        ${unlock}
+      </div>
+      ${soleKey ? "" : `<ul class="gate-rows">${rows.map(([k, v]) =>
+        `<li><em>${num(v)}</em> ${esc(GATE_LABEL[k] || k)}</li>`).join("")}</ul>`}
     </div>`;
   }
 
@@ -533,7 +645,7 @@
     life:      { label: "My life",  icon: "compass" },
     walks:     { label: "Walks",    icon: "dog" },
     quiet:     { label: "Quiet",    icon: "moon" },
-    street:    { label: "Street",   icon: "shield" },
+    street:    { label: "Safety",   icon: "shield" },
     residents: { label: "Residents", icon: "people" },
     verify:    { label: "Is it real?", icon: "search" },
   };
@@ -1067,12 +1179,12 @@
   function streetHead(a, f) {
     const p = f.F.street;
     const summary = p == null || p.pct == null ? "We don't have enough reports here to characterise this block."
-      : p.pct >= 66 ? "Street conditions look better than most of your search."
-      : p.pct >= 34 ? "Street conditions are mixed around this address."
-      : "Street conditions here are worse than most of your search.";
+      : p.pct >= 66 ? "This block reports fewer incidents than most of your search."
+      : p.pct >= 34 ? "This block is about average for your search."
+      : "This block reports more incidents than most of your search.";
     const keys = ["encampment", "break_in", "violent", "cleaning"];
     return {
-      head: `<h3>Street conditions</h3><p>${summary}</p>`,
+      head: `<h3>Safety of the block</h3><p>${summary}</p>`,
       body: `
         <div class="rows street-rows">${keys.map((k) => {
           const pct = FACTORS.streetPct(a, k);
@@ -1586,7 +1698,8 @@
   document.addEventListener("click", (e) => {
     const t = e.target.closest("[data-tab],[data-pick],[data-step],[data-act],[data-scroll]," +
       "[data-street],[data-open],[data-zoom],[data-recenter],[data-theme-set],[data-photo]," +
-      "[data-walk],[data-hood],[data-district],#ownerbtn,#recheck,#deepbtn");
+      "[data-walk],[data-hood],[data-district],[data-saved]," +
+      "#ownerbtn,#recheck,#deepbtn");
     if (!t) return;
     if (t.dataset.tab) return setTab(t.dataset.tab);
     if (t.dataset.pick) return select(+t.dataset.pick);
@@ -1621,7 +1734,17 @@
     if (t.dataset.act === "save") {
       const a = cur().a;
       S.saved.has(a.id) ? S.saved.delete(a.id) : S.saved.add(a.id);
-      drawDecision(); drawFilm();
+      persistSaved();
+      // Un-saving the last one while filtered to saved would leave an empty
+      // screen with no way back, so the filter releases itself.
+      if (S.onlySaved && !S.saved.size) { S.onlySaved = false; applyHood(); return; }
+      if (S.onlySaved) { applyHood(); return; }
+      drawDecision(); drawFilm(); drawHood();
+      return;
+    }
+    if (t.dataset.saved !== undefined) {
+      S.onlySaved = !S.onlySaved;
+      applyHood();
       return;
     }
     if (t.dataset.act === "pass") {
@@ -1677,6 +1800,7 @@
   /* ---------- boot ---------- */
   function boot() {
     initTheme();
+    S.saved = loadSaved();
     MK.attach($("map"), frame);
     /* Listing photos come from the same congested burst the tiles do, and a
        broken <img> stays broken with no way back. Two retries with backoff,

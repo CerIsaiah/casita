@@ -52,6 +52,9 @@ const ICON = (() => {
     park:     '<path d="M12 3.5 6.5 12h4l-4 5.5h11L13.5 12h4Z"/><path d="M12 17.5v3.5"/><path d="M3.5 21h17"/>',
     pin:      '<path d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/>',
     grid:     '<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>',
+    // Matches the ♥ on the save button. Drawn rather than borrowed from `star`
+    // so the filter and the control that fills it read as the same gesture.
+    heart:    '<path d="M12 20s-7-4.7-7-9.5A4 4 0 0 1 12 7a4 4 0 0 1 7 3.5C19 15.3 12 20 12 20Z"/>',
   };
 
   /* Returns markup, not a node, because every caller here builds HTML strings.

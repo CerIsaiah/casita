@@ -180,7 +180,7 @@ const FACTORS = (() => {
     },
 
     street: {
-      label: "Street conditions", icon: "shield", tab: "street", quizzable: true,
+      label: "Safety", icon: "shield", tab: "street", quizzable: true,
       /* Deliberately NOT a safety score. Four separate city datasets, grouped
          for navigation and inspectable underneath.
 
@@ -202,8 +202,8 @@ const FACTORS = (() => {
         return crime * 0.8 + upkeep * 0.2;
       },
       conf: (a) => cl(streetCoverage(a) / 400, 0.35, 1),
-      why: () => "Street conditions look good",
-      but: () => "Street conditions are mixed around this address",
+      why: () => "This block reports fewer incidents than most",
+      but: () => "This block reports more incidents than most",
     },
 
     cost: {

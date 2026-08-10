@@ -122,9 +122,13 @@ const QUIZ = (() => {
   }
 
   /* ---------- content ---------- */
+  /* "Work", "Gym" and "Grocery" are matched by exact string in factors.js and
+     geo.js, so those three labels are load-bearing and cannot be reworded here
+     without silently breaking the factors that look them up. The others are
+     free text and are phrased not to assume a job, a partner or a degree. */
   const ANCHOR_KINDS = [
     ["briefcase", "Work"], ["dumbbell", "Gym"], ["cart", "Grocery"],
-    ["star", "Partner"], ["building", "School"], ["coffee", "Favorite spot"],
+    ["star", "Someone I visit"], ["building", "School"], ["coffee", "Somewhere I go a lot"],
   ];
 
   // Only amenities the data can actually answer. There is no parking, elevator
@@ -138,7 +142,7 @@ const QUIZ = (() => {
   ];
 
   const PRIORITIES = [
-    ["quiet", "moon", "Quiet nights"], ["street", "shield", "Street conditions"],
+    ["quiet", "moon", "Quiet nights"], ["street", "shield", "Safety of the block"],
     ["cost", "money", "Lower monthly cost"], ["space", "ruler", "More space"],
     ["management", "wrench", "Good management"], ["residents", "star", "Resident satisfaction"],
     ["transit", "train", "Transit"], ["walk", "walk", "Walkability"],
@@ -234,9 +238,19 @@ const QUIZ = (() => {
       valid: () => Object.keys(D.priorities).length >= 1,
     },
     {
+      /* The old wording was "Where does your life happen?", which reads well
+         and quietly assumes you already know. A lot of people filling this in
+         are moving to San Francisco and do not have an office address, a gym,
+         or a regular anything yet, and being asked to pin your life to a map
+         before you have one is a good way to make someone feel behind.
+
+         The step still does the same work. It just says out loud what was
+         already true: the search accepts neighbourhoods and landmarks, not
+         only street addresses, and every one of these is optional. */
       section: "Your life",
-      title: "Where does your life happen?",
-      sub: "We'll draw the route from every apartment to these, and rank on how far they are.",
+      title: "Anywhere you need to be near?",
+      sub: "Skip this if you're not sure yet. A rough answer is worth more than a precise "
+         + "guess - \"SoMa\" or \"Caltrain\" works as well as a street address.",
       body: () => `
         <div class="q-anchors">${D.anchors.map((an, i) =>
           `<div class="q-anchor">${ICON.svg(an.icon, 17)}
@@ -249,10 +263,15 @@ const QUIZ = (() => {
           <div class="q-kinds">${ANCHOR_KINDS.map(([ic, l]) =>
             `<button class="q-kind ${D._kind === l ? "on" : ""}" data-kind="${ic}|${l}">
               ${ICON.svg(ic, 15)}${l}</button>`).join("")}</div>
-          <input class="q-search" id="q-search" placeholder="${D._kind ? `Where is ${D._kind.toLowerCase()}? Search an address or place…` : "Pick a category, then search…"}"
+          <input class="q-search" id="q-search" placeholder="${D._kind
+            ? `Roughly where? A neighbourhood is fine…`
+            : "Pick one above, or skip this step…"}"
             autocomplete="off" ${D._kind ? "" : "disabled"}>
           <div class="q-results" id="q-results"></div>
         </div>
+        ${D.anchors.length ? "" : `<p class="q-note">Nothing here yet, and that is a
+          perfectly good answer - without any of these we rank on everything else you
+          told us and simply do not draw travel times.</p>`}
         ${D.anchors.some((x) => x.label === "Work") ? `
           <p class="q-label">How long is too long to commute?</p>
           <div class="q-pills">${[[20, "20 min"], [30, "30 min"], [45, "45 min"],
@@ -261,8 +280,8 @@ const QUIZ = (() => {
               data-commute="${v}">${l}</button>`).join("")}</div>
           <p class="q-note">One way, door to door. Anything longer is treated as a wall, like your
             budget - a beautiful flat you would resent every morning is not a good match.</p>` : ""}
-        <p class="q-note">Addresses are looked up once and stay in this browser. Travel times are
-          estimates, not live routing.</p>`,
+        ${D._kind || D.anchors.length ? `<p class="q-note">Addresses are looked up once and
+          stay in this browser. Travel times are estimates, not live routing.</p>` : ""}`,
     },
     {
       section: "Tradeoffs",
