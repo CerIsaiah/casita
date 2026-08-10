@@ -78,7 +78,6 @@ Four things kept surfacing:
   renting you the place is the registered owner of it.
 
 ---
-<img width="1512" height="826" alt="image" src="https://github.com/user-attachments/assets/181b9b8c-c336-4452-85a7-a2918be027c4" />
 
 ## How I approached it
 
@@ -146,7 +145,7 @@ in the project, so instead I pulled an OpenStreetMap extract of the city and run
 AI over it in the browser. A full refresh took about an hour. After that the site costs nothing to serve.
 
 ---
-<img width="752" height="735" alt="image" src="https://github.com/user-attachments/assets/249c588f-e9cc-4b84-9bfb-c63df112b9fc" />
+<img width="1512" height="826" alt="image" src="https://github.com/user-attachments/assets/181b9b8c-c336-4452-85a7-a2918be027c4" />
 
 ## Design decisions
 
@@ -198,6 +197,9 @@ Four street layers on a rolling twelve-month window, plus building history:
 | Encampment reports | SF 311 |
 | Street & sidewalk cleaning requests | SF 311 |
 | Violations, complaints, City Attorney referrals | SF DBI, keyed to the parcel |
+
+<img width="752" height="735" alt="image" src="https://github.com/user-attachments/assets/249c588f-e9cc-4b84-9bfb-c63df112b9fc" />
+<img width="784" height="742" alt="image" src="https://github.com/user-attachments/assets/a53b77eb-aa94-4e64-adc2-c5d22d4af180" />
 
 Counts are converted to percentiles against the rest of the search, in order to know if something like
 "forty incidents"  is good or bad.
