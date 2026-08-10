@@ -246,24 +246,6 @@ def _classify_laundry(value: str) -> str:
     return value[:60]
 
 
-def _classify_pets(value: str) -> tuple[str | None, bool | None]:
-    """Returns (dog_policy, pets_allowed_bool)."""
-    v = value.lower()
-    # No / disallowed.
-    if v in {"no", "none"} or "not allowed" in v or "no pets" in v:
-        return "no_dogs", False
-    # Large explicit.
-    if re.search(r"large\s+dogs?\s+(ok|welcome|allowed)", v) or "no breed restriction" in v:
-        return "large_ok", True
-    # Size restricted.
-    if "small dogs only" in v or re.search(r"under\s+\d+\s*(lb|lbs|pounds)", v):
-        return "small_only", False
-    # Generic dogs allowed.
-    if "dogs" in v or v == "yes" or "pets" in v or "allowed" in v or "ok" in v:
-        return "dogs_ok", True
-    return None, None
-
-
 # Match listing-photo URLs. Zillow's photo URL suffixes encode purpose:
 #   -cc_ft_<size>.jpg  → real unit listing photos (cover-crop fixed-thumb)
 #   -p_e.webp / -p_i.jpg → building photos on /apartments/ multi-unit pages
@@ -348,24 +330,20 @@ def _parse_detail_html(html: str, listing: Listing) -> None:
     if laundry_val:
         listing.laundry = _classify_laundry(laundry_val)
 
-    # Pets / dogs.
-    pets_val = facts.get("pets allowed") or facts.get("pets")
-    if pets_val:
-        policy, allowed = _classify_pets(pets_val)
-        if policy:
-            listing.dog_policy = policy
-        if allowed is not None:
-            listing.pets_allowed = allowed
-
     # Body text as fallback for things that aren't in the facts grid.
     body_text = soup.get_text(" ", strip=True)
 
-    # If the facts grid had nothing on pets, regex-search the body.
-    if not listing.dog_policy:
+    # Pets / dogs. The facts grid is the better source when it has a row, so it
+    # is tried first and the body is the fallback -- but both go through the
+    # same classifier, so "Pets allowed: no large dogs" can no longer come out
+    # the other side as dogs_ok.
+    pets_val = facts.get("pets allowed") or facts.get("pets")
+    policy = dogs.classify_field(pets_val) if pets_val else None
+    if policy is None:
         policy = dogs.classify(body_text)
-        if policy:
-            listing.dog_policy = policy
-            listing.pets_allowed = policy in ("large_ok", "dogs_ok")
+    if policy:
+        listing.dog_policy = policy
+        listing.pets_allowed = dogs.allows_large_dogs(policy)
 
     # Listing-agent name lives in body text as "Listed by …". Possibilities:
     #   "Listed by property owner" (no name)  — show "property owner"

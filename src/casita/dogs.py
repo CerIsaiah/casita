@@ -71,6 +71,54 @@ def classify(text: str | None, default: DogPolicy | None = None) -> DogPolicy | 
     return default
 
 
+# A facts grid answers "Pets allowed: Yes". That is a whole-value answer, not a
+# phrase to search inside, and the prose patterns above deliberately do not
+# match it -- "yes" says nothing on its own.
+#
+# This vocabulary used to live in zillow.py as a second, looser implementation
+# of the same taxonomy. The two disagreed on 6 of 13 representative inputs, and
+# the loose one won, because zillow consulted it first and only fell back to
+# these patterns when it returned nothing. Two of the disagreements were
+# user-facing wrong: "pet policy: no dogs" and "no large dogs" both classified
+# as dogs_ok, because a bare `"dogs" in value` test fired before any of the
+# narrower no-checks could. Structured values are now answered here, and
+# anything that is not a bare answer falls through to the prose patterns, so
+# there is exactly one place where this taxonomy is decided.
+_FIELD_NO = {"no", "none", "n", "not allowed", "no pets", "no dogs"}
+_FIELD_YES = {"yes", "y", "ok", "allowed", "pets allowed", "dogs allowed"}
+
+# Whether a policy clears the bar for two large dogs. `small_only` is False
+# here for the same reason `no_dogs` is: the answer to "can we live there" is
+# no. The distinction is kept in the policy itself so the interface can still
+# say *why*.
+_ALLOWS: dict[DogPolicy, bool] = {
+    "large_ok": True, "dogs_ok": True, "small_only": False, "no_dogs": False,
+}
+
+
+def classify_field(value: str | None,
+                   default: DogPolicy | None = None) -> DogPolicy | None:
+    """Classify a structured field value, e.g. Zillow's "Pets allowed" row.
+
+    Bare answers are matched as whole values; everything else is prose and is
+    handed to `classify`, so a field reading "Small dogs under 25 lbs" gets the
+    same treatment it would get in a listing body.
+    """
+    if not value:
+        return default
+    v = " ".join(value.split()).strip().lower().rstrip(".")
+    if v in _FIELD_NO:
+        return "no_dogs"
+    if v in _FIELD_YES:
+        return "dogs_ok"
+    return classify(value, default=default)
+
+
+def allows_large_dogs(policy: DogPolicy | None) -> bool | None:
+    """None stays None: "we never found out" is not "no"."""
+    return None if policy is None else _ALLOWS[policy]
+
+
 LABELS: dict[DogPolicy, str] = {
     "large_ok": "Large dogs OK",
     "dogs_ok": "Dogs OK",
