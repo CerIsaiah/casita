@@ -171,6 +171,27 @@ a{color:inherit}
   --pill-gap:6px;
 }
 .hoodbar{flex:none;display:grid;gap:8px}
+/* The collapsed state. Wide enough to read as a control rather than a chip,
+   because it is the one thing up here that opens something. */
+.hoodbar-top{display:flex;align-items:center;gap:var(--pill-gap);flex-wrap:wrap}
+.hoodpick{display:inline-flex;align-items:center;gap:8px;cursor:pointer;
+  border:1px solid var(--line);background:var(--card);border-radius:99px;
+  font:inherit;font-size:var(--pill-fs);color:var(--ink-2);
+  padding:var(--pill-py) 13px;transition:border-color .14s,color .14s}
+.hoodpick:hover{border-color:var(--ink-3);color:var(--ink)}
+.hoodpick b{font-weight:640;color:var(--ink)}
+.hoodpick em{font-style:normal;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.hoodpick .chev{display:inline-block;transition:transform .18s;color:var(--ink-3);
+  font-size:14px;line-height:1;margin-left:1px}
+.hoodpick.open .chev{transform:rotate(90deg)}
+.hoodpick.open{border-color:var(--accent-line);background:var(--accent-bg);color:var(--accent)}
+.hoodpick.open b{color:var(--accent)}
+.hoodpick:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* The chips, once asked for. Indented under the control that opened them so
+   the relationship is visible without a border or a box. */
+.hoodpanel{display:grid;gap:7px;padding-left:2px;
+  animation:hoodin .16s ease-out}
+@keyframes hoodin{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
 .hoodrow{display:flex;gap:var(--pill-gap);flex-wrap:wrap}
 .hoodchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);
   background:var(--card);border-radius:99px;font-size:var(--pill-fs);

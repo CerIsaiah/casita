@@ -40,6 +40,7 @@
     saved: new Set(),
     passed: new Set(),
     onlySaved: false, // showing the shortlist, or only the ones you kept
+    hoodOpen: false,  // the area picker is folded away until asked for
   };
 
   const $ = (id) => document.getElementById(id);
@@ -214,19 +215,41 @@
       .find((b) => HOODS.SPLITS[b].above === S.hood || HOODS.SPLITS[b].below === S.hood)) || S.hood;
     const note = S.hood ? HOODS.noteFor(S.hood, base) : null;
 
+    /* Folded away until asked for.
+
+       Eight district chips and a sub-area row is a lot of permanent furniture
+       above the thing you came to look at, and most people never change it -
+       the quiz already decided where to look. So the control states the
+       current selection and gets out of the way, and opens to the same chips
+       as before. A dropdown of forty neighbourhoods was the version before
+       this one and asked the reader to hold the whole city in their head; the
+       chips still do that job, they just wait to be asked. */
+    const label = S.hood || S.district || "All of San Francisco";
+    const open = S.hoodOpen ? " open" : "";
+
     el.innerHTML = `
-      <div class="hoodrow">
-        <button class="hoodchip ${!S.district && !S.onlySaved ? "on" : ""}" data-district="">All of SF</button>
+      <div class="hoodbar-top">
+        <button class="hoodpick${open}" data-hoodtoggle="1"
+          aria-expanded="${S.hoodOpen ? "true" : "false"}">
+          ${ICON.svg("pin", 13)}<b>${esc(label)}</b>
+          <em>${num(counts.eligible)}</em>
+          <span class="chev">›</span>
+        </button>
         ${S.saved.size ? `<button class="hoodchip saved ${S.onlySaved ? "on" : ""}"
           data-saved="1">${ICON.svg("heart", 13)}Saved <em>${S.saved.size}</em></button>` : ""}
-        ${ds.map((d) => `<button class="hoodchip ${d.name === S.district ? "on" : ""}"
-          data-district="${esc(d.name)}">${ICON.svg(d.icon, 14)}${esc(d.name)}
-          <em>${d.n}</em></button>`).join("")}
       </div>
-      ${S.district && areas.length > 1 ? `<div class="hoodrow sub">
-        <button class="hoodchip small ${!S.hood ? "on" : ""}" data-hood="">Whole district</button>
-        ${areas.map(([nm, c]) => `<button class="hoodchip small ${nm === S.hood ? "on" : ""}"
-          data-hood="${esc(nm)}">${esc(nm)} <em>${c}</em></button>`).join("")}
+      ${S.hoodOpen ? `<div class="hoodpanel">
+        <div class="hoodrow">
+          <button class="hoodchip ${!S.district && !S.onlySaved ? "on" : ""}" data-district="">All of SF</button>
+          ${ds.map((d) => `<button class="hoodchip ${d.name === S.district ? "on" : ""}"
+            data-district="${esc(d.name)}">${ICON.svg(d.icon, 14)}${esc(d.name)}
+            <em>${d.n}</em></button>`).join("")}
+        </div>
+        ${S.district && areas.length > 1 ? `<div class="hoodrow sub">
+          <button class="hoodchip small ${!S.hood ? "on" : ""}" data-hood="">Whole district</button>
+          ${areas.map(([nm, c]) => `<button class="hoodchip small ${nm === S.hood ? "on" : ""}"
+            data-hood="${esc(nm)}">${esc(nm)} <em>${c}</em></button>`).join("")}
+        </div>` : ""}
       </div>` : ""}
       ${note ? `<p class="hoodnote">${esc(note)}${
         HOODS.splitNote(base) ? " " + esc(HOODS.splitNote(base)) : ""}</p>` : ""}
@@ -1698,7 +1721,7 @@
   document.addEventListener("click", (e) => {
     const t = e.target.closest("[data-tab],[data-pick],[data-step],[data-act],[data-scroll]," +
       "[data-street],[data-open],[data-zoom],[data-recenter],[data-theme-set],[data-photo]," +
-      "[data-walk],[data-hood],[data-district],[data-saved]," +
+      "[data-walk],[data-hood],[data-district],[data-saved],[data-hoodtoggle]," +
       "#ownerbtn,#recheck,#deepbtn");
     if (!t) return;
     if (t.dataset.tab) return setTab(t.dataset.tab);
@@ -1718,9 +1741,17 @@
     if (t.dataset.themeSet) return setTheme(t.dataset.themeSet);
     if (t.dataset.photo) return stepPhoto(+t.dataset.photo);
     if (t.dataset.district !== undefined) {
-      S.district = t.dataset.district || null; S.hood = null; applyHood(); return;
+      S.district = t.dataset.district || null; S.hood = null;
+      // Choosing a district reveals its sub-areas, so the panel stays open;
+      // choosing "All of SF" is a finished answer and closes it.
+      S.hoodOpen = !!S.district;
+      applyHood(); return;
     }
-    if (t.dataset.hood !== undefined) { S.hood = t.dataset.hood || null; applyHood(); return; }
+    if (t.dataset.hood !== undefined) {
+      S.hood = t.dataset.hood || null;
+      S.hoodOpen = false;          // a specific area is a finished answer
+      applyHood(); return;
+    }
     if (t.dataset.walk) {
       S.walk = t.dataset.walk;
       restart(); drawPanel(); reframe();
@@ -1740,6 +1771,11 @@
       if (S.onlySaved && !S.saved.size) { S.onlySaved = false; applyHood(); return; }
       if (S.onlySaved) { applyHood(); return; }
       drawDecision(); drawFilm(); drawHood();
+      return;
+    }
+    if (t.dataset.hoodtoggle !== undefined) {
+      S.hoodOpen = !S.hoodOpen;
+      drawHood();
       return;
     }
     if (t.dataset.saved !== undefined) {
