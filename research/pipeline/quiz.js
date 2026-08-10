@@ -155,7 +155,7 @@ const QUIZ = (() => {
     {
       section: "What you need",
       title: "What can you spend?",
-      sub: "Total monthly housing cost — not just the advertised rent. We compare against our estimate of the real number.",
+      sub: "Total monthly housing cost - not just the advertised rent. We compare against our estimate of the real number.",
       body: () => `
         <div class="q-budget">
           <div class="q-bnum">
@@ -174,7 +174,7 @@ const QUIZ = (() => {
     {
       section: "What you need",
       title: "Tell us about the place.",
-      sub: "Just the basics — we'll use these as filters, not as scoring.",
+      sub: "Just the basics - we'll use these as filters, not as scoring.",
       body: () => `
         <p class="q-label">Bedrooms</p>
         <div class="q-pills">${[[null, "Studio+"], [0, "Studio"], [1, "1+"], [2, "2+"], [3, "3+"]]
@@ -194,7 +194,7 @@ const QUIZ = (() => {
     {
       section: "What you need",
       title: "Anything you won't live without?",
-      sub: "Tap once for nice to have, twice for must have. Must-haves are constraints — we'll say so when a listing can't prove one.",
+      sub: "Tap once for nice to have, twice for must have. Must-haves are constraints - we'll say so when a listing can't prove one.",
       body: () => `
         <div class="q-amens">${AMENITIES.map(([k, ic, l]) => {
           const state = D.must.includes(k) ? "must" : D.nice.includes(k) ? "nice" : "";
@@ -204,17 +204,17 @@ const QUIZ = (() => {
           </button>`;
         }).join("")}</div>
         <p class="q-note">Only amenities our sources actually publish are listed here. We never fail a
-          listing for staying silent — we mark it "needs verification" instead.</p>`,
+          listing for staying silent - we mark it "needs verification" instead.</p>`,
     },
     {
       section: "What matters most",
       title: "What matters most about where you live?",
       /* One is a legitimate answer.
          Requiring three forced people to invent preferences they did not have,
-         and an invented priority is not neutral — it is averaged in against the
+         and an invented priority is not neutral - it is averaged in against the
          real one and dilutes it. Someone who only cares about being near the
          bars should be able to say exactly that and get the bars. */
-      sub: "Pick one to five. This decides what we rank on — and what we bother showing you.",
+      sub: "Pick one to five. This decides what we rank on - and what we bother showing you.",
       body: () => {
         const chosen = Object.keys(D.priorities);
         return `<div class="q-prios">${PRIORITIES.map(([k, ic, l]) => {
@@ -227,7 +227,7 @@ const QUIZ = (() => {
         }).join("")}</div>
         <p class="q-note">${!chosen.length
           ? "Pick at least one."
-          : chosen.length >= 5 ? "That's the limit — five is already a lot to weigh at once."
+          : chosen.length >= 5 ? "That's the limit - five is already a lot to weigh at once."
           : `${chosen.length} picked. Add more if they genuinely matter; each one you
              add divides the attention the others get.`}</p>`;
       },
@@ -260,13 +260,13 @@ const QUIZ = (() => {
             .map(([v, l]) => `<button class="q-pill ${D.maxCommute === v ? "on" : ""}"
               data-commute="${v}">${l}</button>`).join("")}</div>
           <p class="q-note">One way, door to door. Anything longer is treated as a wall, like your
-            budget — a beautiful flat you would resent every morning is not a good match.</p>` : ""}
+            budget - a beautiful flat you would resent every morning is not a good match.</p>` : ""}
         <p class="q-note">Addresses are looked up once and stay in this browser. Travel times are
           estimates, not live routing.</p>`,
     },
     {
       section: "Tradeoffs",
-      title: "Last thing — what would you trade?",
+      title: "Last thing - what would you trade?",
       sub: "There is no right answer. This only breaks ties.",
       body: () => `
         <div class="q-trades">
@@ -327,7 +327,7 @@ const QUIZ = (() => {
   }
 
   /* One delegated listener for the whole quiz. Redrawing on every answer is
-     what keeps the copy underneath the pills honest — "pick two more" has to
+     what keeps the copy underneath the pills honest - "pick two more" has to
      count down as you tap. */
   function wire() {
     host.addEventListener("input", (e) => {

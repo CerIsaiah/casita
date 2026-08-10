@@ -40,11 +40,11 @@
 
 /* ---------- small shared helpers ---------- */
 const cl = (v, a, b) => Math.max(a, Math.min(b, v));
-const money = (v) => v == null ? "—" : "$" + Math.round(v).toLocaleString("en-US");
-const num = (v) => v == null ? "—" : Math.round(v).toLocaleString("en-US");
+const money = (v) => v == null ? "-" : "$" + Math.round(v).toLocaleString("en-US");
+const num = (v) => v == null ? "-" : Math.round(v).toLocaleString("en-US");
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g,
   (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const bedTxt = (b) => b == null ? "—" : b === 0 ? "Studio" : `${b} bd`;
+const bedTxt = (b) => b == null ? "-" : b === 0 ? "Studio" : `${b} bd`;
 
 /* Epoch seconds -> "3 days ago". Deliberately coarse: an advert posted at
    14:22 is not meaningfully different from one posted at 16:45, and printing
@@ -157,7 +157,7 @@ const FACTORS = (() => {
 
      `tab` names the visual answer that explains it, or null if the factor has
      no picture worth drawing. `quizzable` marks the ones the renter can pick
-     in section B — the rest exist only as baseline quality and anomalies. */
+     in section B - the rest exist only as baseline quality and anomalies. */
   const REG = {
 
     quiet: {
@@ -174,7 +174,7 @@ const FACTORS = (() => {
       },
       conf: (a) => (a.scores || {}).sound != null ? 0.9 : 0.65,
       why: (a) => a.late
-        ? `Quiet after 10 PM — ${a.late} venue${a.late === 1 ? "" : "s"} licensed late nearby`
+        ? `Quiet after 10 PM - ${a.late} venue${a.late === 1 ? "" : "s"} licensed late nearby`
         : "Quiet after 10 PM",
       but: (a) => `Busier after dark than most blocks in your search`,
     },
@@ -419,8 +419,8 @@ const FACTORS = (() => {
         ? `Listed on ${a.src.length} sites that agree on the address`
         : "Address matches a real building on the city parcel map",
       but(a) {
-        if (!(a.photos || []).length) return "No photos on the listing — we can't see the unit";
-        if (underpriced(a)) return "Priced well under the going rate for its size — verify before paying anything";
+        if (!(a.photos || []).length) return "No photos on the listing - we can't see the unit";
+        if (underpriced(a)) return "Priced well under the going rate for its size - verify before paying anything";
         if (a.photo_reuse) return "Some of these photos appear on another address";
         if (!a.parcel_ok) return "This address didn't match a building on the parcel map";
         return "Little independent confirmation this listing is genuine";
@@ -447,7 +447,7 @@ const FACTORS = (() => {
       },
       conf: (a) => a.posted ? 0.9 : 0,
       why: (a) => `Posted ${agoWords(a.posted)}`,
-      but: (a) => `Posted ${agoWords(a.posted)} — older ads are likelier to be gone`,
+      but: (a) => `Posted ${agoWords(a.posted)} - older ads are likelier to be gone`,
     },
 
     /* ---------- living here with a dog ----------
@@ -480,7 +480,7 @@ const FACTORS = (() => {
         return `Dogs allowed${fee} · ${parks} green space${parks === 1 ? "" : "s"} within a 10-min walk`;
       },
       but(a) {
-        if (!a.pet) return "No pet policy published — confirm dogs before you view";
+        if (!a.pet) return "No pet policy published - confirm dogs before you view";
         if (!a.pet.dogs) return "The policy mentions pets but not dogs specifically";
         return "Little green space within walking distance for a dog";
       },
@@ -522,15 +522,15 @@ const FACTORS = (() => {
       why(a) {
         const am = (a.unit_amen || []).length;
         if (am && a.est === "verified")
-          return `Matched to this unit — ${am} amenities and its own verified rent`;
+          return `Matched to this unit - ${am} amenities and its own verified rent`;
         if (am) return `${am} amenities listed for this unit specifically`;
         if (a.est === "verified") return "Rent verified for this unit, not the building";
         return `${num(a.sqft)} sq ft published for this unit`;
       },
       but(a) {
         if ((a.photos || []).length >= 4)
-          return `${a.photos.length} photos but nothing specific to this unit — you may be looking at the building, not the flat`;
-        return "Nothing published about this specific unit — ask what you'd actually be renting";
+          return `${a.photos.length} photos but nothing specific to this unit - you may be looking at the building, not the flat`;
+        return "Nothing published about this specific unit - ask what you'd actually be renting";
       },
     },
 
@@ -544,7 +544,7 @@ const FACTORS = (() => {
       },
       conf: (a) => a.yr ? 0.5 : 0,
       why: (a) => `Built ${a.yr}`,
-      but: (a) => `A ${a.yr} building — expect its age to show`,
+      but: (a) => `A ${a.yr} building - expect its age to show`,
     },
   };
 
@@ -599,9 +599,9 @@ const FACTORS = (() => {
         // unticked Craigslist box means the poster skipped a checkbox. Neither
         // source can produce a confident refusal, so a pet requirement can be
         // unknown but never failed.
-        if (!a.pet) say("unknown", k, "No pet policy published — ask before you view");
-        else if (a.pet.ok) say("ok", k, a.pet.monthly ? `Pets OK — ${money(a.pet.monthly)}/mo pet rent` : "Pets allowed");
-        else say("unknown", k, "This post doesn't say pets are OK — worth confirming");
+        if (!a.pet) say("unknown", k, "No pet policy published - ask before you view");
+        else if (a.pet.ok) say("ok", k, a.pet.monthly ? `Pets OK - ${money(a.pet.monthly)}/mo pet rent` : "Pets allowed");
+        else say("unknown", k, "This post doesn't say pets are OK - worth confirming");
         continue;
       }
       if (k === "rc") {
@@ -612,7 +612,7 @@ const FACTORS = (() => {
       }
       if (k === "wd" && a.wd != null) { // an explicit field beats the amenity list
         if (a.wd) say("ok", k, "In-unit washer/dryer");
-        else say("unknown", k, "No in-unit laundry mentioned — worth confirming");
+        else say("unknown", k, "No in-unit laundry mentioned - worth confirming");
         continue;
       }
       const re = AMEN_MATCH[k];
@@ -620,7 +620,7 @@ const FACTORS = (() => {
       // Silence is not evidence of absence. Only a listing that published an
       // amenity list can be read as not having something on it, and even then
       // we ask rather than reject.
-      if (!a.unit_amen || !a.unit_amen.length) say("unknown", k, `${AMEN_LABEL[k]} not listed — needs verification`);
+      if (!a.unit_amen || !a.unit_amen.length) say("unknown", k, `${AMEN_LABEL[k]} not listed - needs verification`);
       else if (a.unit_amen.some((x) => re.test(x))) say("ok", k, `${AMEN_LABEL[k]} confirmed`);
       else say("unknown", k, `${AMEN_LABEL[k]} isn't on this listing's amenity list`);
     }
@@ -669,7 +669,7 @@ const FACTORS = (() => {
        "unchecked" — and saying that plainly is better than implying they are
        live because we did not look. */
     if (a.avail === "gone" || a.avail === "no_units")
-      out.push({ text: "This listing looks gone — it was not in the latest sweep",
+      out.push({ text: "This listing looks gone - it was not in the latest sweep",
                  src: a.avail_src || "availability sweep" });
     else if (a.avail === "unknown")
       out.push({ text: "We could not check whether this is still available",
@@ -949,7 +949,7 @@ const FACTORS = (() => {
        range you can actually reach is this", not "how many listings did it
        beat". Most of what anyone is shown should land in the upper half; that
        is what being shown at all is supposed to signify. */
-    const label = (r) => r == null ? "—"
+    const label = (r) => r == null ? "-"
       : r >= 85 ? "Excellent fit" : r >= 70 ? "Great fit"
       : r >= 50 ? "Good fit" : r >= 30 ? "Worth a look" : "Weak fit";
 

@@ -443,14 +443,14 @@
     row("Size", a.sqft ? `${num(a.sqft)} sq ft` : "not published");
     row("Built", a.yr);
     row("Units in building", a.units ? num(a.units) : null);
-    row("Rent control", a.rc === "yes" ? "Likely — " + esc(a.rc_why || "")
+    row("Rent control", a.rc === "yes" ? "Likely - " + esc(a.rc_why || "")
         : a.rc === "no" ? "City records say no" : "Unclear");
     row("In-unit laundry", a.wd === true ? "Yes" : a.wd === false ? "Not mentioned" : "Unknown");
     row("Amenities listed", (a.unit_amen || []).join(", ") || "none published");
-    row("Pets", a.pet ? (a.pet.ok ? `Allowed${a.pet.monthly ? ` — ${money(a.pet.monthly)}/mo` : ""}` : "Not stated") : "No policy published");
+    row("Pets", a.pet ? (a.pet.ok ? `Allowed${a.pet.monthly ? ` - ${money(a.pet.monthly)}/mo` : ""}` : "Not stated") : "No policy published");
     row("Building violations", `${num(a.novs)} on file · ${num(a.active)} open · ${num(a.over_year)} open over a year`);
     row("Availability", a.avail === "live" ? `Verified live (${esc(a.avail_src || "")})`
-        : a.avail === "unknown" ? "Not checkable — this source has no free liveness check"
+        : a.avail === "unknown" ? "Not checkable - this source has no free liveness check"
         : "May be gone");
 
     const st = a.street || {}, sp = a.street_pct || {};
@@ -502,7 +502,7 @@
             : `<em class="film-nophoto">no photo</em>`}
             ${t ? `<em class="film-tag ${t.c}">${t.t}</em>` : ""}</span>
           <span class="film-name">${esc(shortLabel(it.a))}</span>
-          <span class="film-src ${SRC_CLASS[src] || "other"}">${esc(SRC_SHORT[src] || src || "—")}</span>
+          <span class="film-src ${SRC_CLASS[src] || "other"}">${esc(SRC_SHORT[src] || src || "-")}</span>
         </button>`;
       }).join("")}</div>
       <button class="film-arrow" data-scroll="1">›</button></div>
@@ -511,7 +511,7 @@
           ? ` · ${num(counts.rooms)} rooms and shares left out` : ""}${counts.gone
           ? ` · ${num(counts.gone)} no longer listed` : ""}.
         ${counts.missed ? `<button class="linkish" onclick="CASITA.editPriorities()">${
-          num(counts.missed)} ruled out by your budget and bedrooms</button> —` : ""}
+          num(counts.missed)} ruled out by your budget and bedrooms</button> -` : ""}
         scraped ${ago(scrapedAt())}. Use ← → to move.</p>`;
     const sel = el.querySelector(".film-card.on");
     if (sel) sel.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
@@ -991,8 +991,8 @@
             return r.real ? `${r.mins} min` : GEO.minsText(a, l.mins); })()
             }<em>${l.mode}</em></span></div>`).join("")}
         <p class="fine">${canRoute(a)
-          ? "Walking legs are routed on OpenStreetMap's pavement network — real streets, real lengths. Transit and driving legs stay estimates: this network is pavements, so it can measure a walk exactly and cannot time a bus at all."
-          : "Straight-line distance with a 30% detour allowance, drawn along the street grid — estimates, not routing."}${
+          ? "Walking legs are routed on OpenStreetMap's pavement network - real streets, real lengths. Transit and driving legs stay estimates: this network is pavements, so it can measure a walk exactly and cannot time a bus at all."
+          : "Straight-line distance with a 30% detour allowance, drawn along the street grid - estimates, not routing."}${
           GEO.pinNote(a) ? " " + esc(GEO.pinNote(a)) : ""}</p>
         </div>` : `<button class="btn" onclick="CASITA.editPriorities()">Add your places</button>`,
     };
@@ -1008,7 +1008,7 @@
     const spec = GEO.WALKS[S.walk] || {};
     return {
       head: `<h3>${esc(spec.label || "Walks")} from the door</h3>
-        <p>${w ? `${w.stops.length} within walking distance — the nearest is ${
+        <p>${w ? `${w.stops.length} within walking distance - the nearest is ${
                    GEO.minutesTo(a, w.stops[0].lat, w.stops[0].lon, "walk")} min away.`
                : "Nothing of that kind close enough to walk to from here."}</p>`,
       body: `
@@ -1024,10 +1024,10 @@
           </div>`).join("")}</div>`
            : ""}
         <p class="fine">${canRoute(a)
-          ? "Routed on OpenStreetMap's pavement and footpath network — these are the streets you would actually walk, and the times are those routes' real lengths."
+          ? "Routed on OpenStreetMap's pavement and footpath network - these are the streets you would actually walk, and the times are those routes' real lengths."
           : GEO.soft(a)
             ? "This listing gives a neighbourhood rather than an address, so routing it door-to-door would be precision from the wrong doorstep. Distances are straight-line with a 30% detour allowance."
-            : "Loading the street network — until it arrives these are straight-line estimates with a 30% detour allowance."}</p>`,
+            : "Loading the street network - until it arrives these are straight-line estimates with a 30% detour allowance."}</p>`,
     };
   }
 
@@ -1093,7 +1093,7 @@
               Percentiles are pulled toward the middle on blocks with few reports on file, so an
               empty block does not read as a calm one.</p>
           </div>`
-        : `<p class="fine">Tap a row to map it on its own. These are four separate city datasets —
+        : `<p class="fine">Tap a row to map it on its own. These are four separate city datasets -
             we group them for navigation, we don't add them into a safety score.</p>`}`,
     };
   }
@@ -1115,11 +1115,11 @@
           <div class="cost-row"><span>Listed rent</span>
             <b>${money(a.rent)}</b><em class="tagv">Verified</em></div>
           <div class="cost-row"><span>Utilities</span>
-            <b>${util ? money(util) + (hi ? `–${money(hi - a.rent)}` : "") : "—"}</b>
+            <b>${util ? money(util) + (hi ? `–${money(hi - a.rent)}` : "") : "-"}</b>
             <em class="${verified ? "tagv" : "tage"}">${verified ? "Verified" : "Estimated"}</em></div>
           ${petFee ? `<div class="cost-row"><span>Pet rent</span><b>${money(petFee)}</b>
             <em class="tagv">Verified</em></div>` : ""}
-          <div class="cost-row"><span>Other mandatory fees</span><b>—</b>
+          <div class="cost-row"><span>Other mandatory fees</span><b>-</b>
             <em class="tagu">Unknown</em></div>
           <div class="cost-total"><span>Estimated monthly total</span>
             <b>${money(act + petFee)}${hi ? `–${money(hi + petFee)}` : ""}</b></div>
@@ -1141,14 +1141,14 @@
 
   /* ---------- RESIDENTS ----------
      Human experience, or an honest blank. Missing reviews are never converted
-     into a good score — that is the single most common lie in this category. */
+     into a good score - that is the single most common lie in this category. */
   function residentsHead(a) {
     const g = a.greview;
     if (!g && !a.rating) {
       return {
         head: `<h3>No resident reviews</h3>
           <p>Nobody has reviewed this building on the sources we read. That is not a good sign or a
-             bad one — it is nothing.</p>`,
+             bad one - it is nothing.</p>`,
         body: `<div class="rows">
             <div class="row"><span>Building violations on file</span><b>${num(a.novs)}</b></div>
             <div class="row"><span>Open cases</span><b>${num(a.active)}</b></div>
@@ -1195,9 +1195,9 @@
     /* Derived from the same audit the panel leads with, not from the
        verification percentile.
 
-       Those are two different measurements — one is "how much of this listing
+       Those are two different measurements - one is "how much of this listing
        could we corroborate relative to other listings", the other is "does
-       what it says add up" — and letting each write its own headline produced
+       what it says add up" - and letting each write its own headline produced
        a panel that opened with "Some checks didn't come back clean" directly
        above a score of 99 and the words "Nothing unusual". A reader cannot
        reconcile that, and shouldn't have to: whichever they believe, the page
@@ -1241,7 +1241,7 @@
           a.loc.moved_m ? ` The pin moved ${Math.round(a.loc.moved_m)} m from where the site put it.` : ""}</p>` : ""}
         <div class="verify-actions">
           <button class="btn" id="recheck">Re-check availability now</button>
-          <span class="fine" id="recheck-note">Free — re-sweeps the Craigslist index.</span>
+          <span class="fine" id="recheck-note">Free - re-sweeps the Craigslist index.</span>
         </div>
 
         ${auditHTML(a)}
@@ -1255,7 +1255,7 @@
                  itself. What the audit reasons about is the presence -- a
                  listing nobody can be reached at is the loudest fraud signal
                  here -- so the claim survives the number being withheld. */
-              : `<b>yes — on the listing</b>`}</div>
+              : `<b>yes - on the listing</b>`}</div>
             ${a.site ? `<div class="row"><span>The building's own site</span>
               <b><a href="${esc(a.site)}" target="_blank" rel="noopener">open →</a></b></div>` : ""}
           </div>` : ""}
@@ -1266,7 +1266,7 @@
         <p class="lab">Is anyone actually there?</p>
         <div id="deepbox">
           <p class="fine">The search index carries no contact details. Casita can open the posting
-            itself and check whether it accepts replies at all — free, one listing at a time.</p>
+            itself and check whether it accepts replies at all - free, one listing at a time.</p>
           <button class="btn" id="deepbtn"
             data-url="${esc(((a.src || []).find((x) => x.n === "Craigslist") || {}).u || "")}">
             Check the posting</button>
@@ -1278,12 +1278,12 @@
             <b>${(a.photos || []).length || "none"}</b></div>
           <div class="row"><span>Amenities listed for this unit</span>
             <b>${(a.unit_amen || []).length
-              ? esc(a.unit_amen.join(", ")) : "none — building-level listing"}</b></div>
+              ? esc(a.unit_amen.join(", ")) : "none - building-level listing"}</b></div>
           <div class="row"><span>Rent and size</span>
             <b>${a.est === "verified" ? "verified for this unit" : "estimated from the building"}${
               a.sqft ? ` · ${num(a.sqft)} sq ft` : ""}</b></div>
         </div>
-        <p class="fine">Casita doesn't look at the pictures — that would need a paid vision API.
+        <p class="fine">Casita doesn't look at the pictures - that would need a paid vision API.
           It checks something cheaper and nearly as useful: whether anyone published facts about
           <em>this unit</em> rather than the building. 35% of listings here have four or more
           photos and not one unit-level fact.</p>
@@ -1300,7 +1300,7 @@
         <div id="ownerbox">
           <p class="fine">Looked up one address at a time from public property records.</p>
           ${(a.loc || {}).level === "neighbourhood"
-            ? `<p class="fine">No published address to look up — this listing gives a neighbourhood only.</p>`
+            ? `<p class="fine">No published address to look up - this listing gives a neighbourhood only.</p>`
             : `<button class="btn" id="ownerbtn" data-addr="${esc(a.addr)}">Look up the owner</button>`}
         </div>
 
@@ -1318,7 +1318,7 @@
 
   /* The auditor's report. Concerns and the reasons against them are shown
      together and in that order, because the reader's question is never "is
-     this cheap" — they can see the price — but "is it cheap for a reason". */
+     this cheap" - they can see the price - but "is it cheap for a reason". */
   const VERDICT = {
     suspect:  { cls: "bad",  word: "Doesn't add up" },
     check:    { cls: "mid",  word: "Worth checking" },
@@ -1328,17 +1328,17 @@
 
   /* A number, a word, and one sentence.
 
-     This panel used to open with four stacked lists — concerns, then reasons
+     This panel used to open with four stacked lists - concerns, then reasons
      the price might legitimately be low, then independent confirmation, then a
-     disclaimer — before the reader learned whether the listing was fine. That
+     disclaimer - before the reader learned whether the listing was fine. That
      is backwards: the answer is "probably fine" for most listings, and making
      someone read eleven bullet points to discover it trains them to skip the
      panel entirely, which is precisely the panel you cannot afford to have
      skipped.
 
      So the verdict leads, as a score anyone can read at a glance, and the
-     evidence moves behind a disclosure. Nothing is removed — every line is one
-     click away and still cites its source — but the reader is no longer made
+     evidence moves behind a disclosure. Nothing is removed - every line is one
+     click away and still cites its source - but the reader is no longer made
      to assemble the conclusion themselves. */
   function trustScore(d) {
     let s = 100;
@@ -1382,7 +1382,7 @@
           ${d.corroborates.length ? `<p class="audit-sub">Independent confirmation</p>
             <div class="checks">${d.corroborates.map((x) =>
               `<div class="ck ok">✓ ${esc(x)}</div>`).join("")}</div>` : ""}
-          <p class="fine">Each line compares two facts we can point at — not a judgement about
+          <p class="fine">Each line compares two facts we can point at - not a judgement about
             whoever posted it. Never pay before seeing the place.</p>
         </details>
       </div>`;
@@ -1414,7 +1414,7 @@
      owner, and re-sweeping availability. The published build has no server, so
      rather than let them fail into a message about a file the reader does not
      have, they say what they are and why they are not running. */
-  const LOCAL_ONLY = `<p class="fine">Live check — runs against the local
+  const LOCAL_ONLY = `<p class="fine">Live check - runs against the local
     pipeline (<code>research/serve.py</code>), which holds the API key and the
     request budget. Not wired up on the published build.</p>`;
 
@@ -1447,10 +1447,10 @@
         <div class="row"><span>Phone or email in the text</span>
           <b>${r.emailsInBody || r.phonesInBody
             ? `${r.emailsInBody} email${r.emailsInBody === 1 ? "" : "s"}, ${r.phonesInBody} phone`
-            : "none — normal for Craigslist"}</b></div>
+            : "none - normal for Craigslist"}</b></div>
       </div>
       ${thin ? `<div class="ck ${veryThin ? "warn" : "note"}" style="margin-top:8px">
-        <b>${veryThin ? "!" : "·"}</b> Less written here than in most postings — worth asking for
+        <b>${veryThin ? "!" : "·"}</b> Less written here than in most postings - worth asking for
         the things it leaves out before you spend an evening on it.</div>` : ""}
       <p class="fine">Read off the posting just now. Casita deliberately does not report whether
         the post "accepts replies": Craigslist ships that button on every page, so the check would
@@ -1476,7 +1476,7 @@
     try {
       r = await (await fetch("/api/owner?addr=" + encodeURIComponent(addr))).json();
     } catch {
-      box.innerHTML = `<p class="fine">Couldn't reach the local server — owner lookups need
+      box.innerHTML = `<p class="fine">Couldn't reach the local server - owner lookups need
         <code>research/serve.py</code> running.</p>`;
       return;
     }
@@ -1507,7 +1507,7 @@
       <p class="fine">From public property records${r.cached ? ", cached from an earlier lookup" : ""}.
         ${r.left != null ? `${r.left} lookups left this month.` : ""}
         These are lawfully public names attached to a parcel. We show the record and nothing
-        inferred from it — no claims about how this owner behaves as a landlord.</p>`;
+        inferred from it - no claims about how this owner behaves as a landlord.</p>`;
   }
 
   /* ---------- re-check availability ----------
@@ -1654,7 +1654,7 @@
       <p class="fine"><b>${f.score} is a rank, not a grade.</b> It means this fits the answers you
         gave better than ${f.score}% of the ${num(counts.eligible)} places that clear your budget,
         bedrooms and must-haves. Each factor below is a rank in the same way. Underlying weighted
-        score ${f.raw}/100 — averaging this many factors compresses toward the middle, which is why
+        score ${f.raw}/100 - averaging this many factors compresses toward the middle, which is why
         the rank is the more useful number. Confidence: ${f.confLabel.toLowerCase()}.</p>
       <div class="rows">${rows.map((x) =>
         `<div class="row"><span class="rowlbl">${ICON.svg(x.def.icon, 15)}${x.def.label}</span>

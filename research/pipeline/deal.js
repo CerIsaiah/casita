@@ -215,7 +215,7 @@ const DEAL = (() => {
         src: "listing title vs source location" });
     if ((a.loc || {}).level === "neighbourhood")
       concerns.push({ id: "soft_pin", sev: "info",
-        text: "Only a neighbourhood, not an address — every distance here is approximate",
+        text: "Only a neighbourhood, not an address - every distance here is approximate",
         src: "Craigslist location policy" });
 
     /* --- deposits and how you are asked to pay ---
@@ -228,11 +228,11 @@ const DEAL = (() => {
     const dep = (a.pet || {}).onetime || 0;
     if (dep && rent && dep > rent)
       concerns.push({ id: "deposit_cap", sev: "high",
-        text: `A ${money(dep)} pet deposit on ${money(rent)} rent — California counts pet deposits inside the one-month deposit cap`,
+        text: `A ${money(dep)} pet deposit on ${money(rent)} rent - California counts pet deposits inside the one-month deposit cap`,
         src: "CA Civil Code §1950.5 as amended by AB 12" });
     if (PAY_RISK.test(words))
       concerns.push({ id: "payment", sev: "high",
-        text: "The ad mentions wiring money or paying by app or gift card — the FTC calls this the surest sign of a rental scam",
+        text: "The ad mentions wiring money or paying by app or gift card - the FTC calls this the surest sign of a rental scam",
         src: "FTC consumer advice on rental listing scams" });
 
     /* --- was this written for Craigslist, or pasted into it? ---
@@ -244,7 +244,7 @@ const DEAL = (() => {
     const truncated = title.length >= 62 && !ENDS_CLEANLY.test(title) && PROSE_START.test(title);
     if (truncated)
       concerns.push({ id: "pasted_title", sev: "high",
-        text: "The title is the opening line of a description, cut off at Craigslist's character limit — it was pasted in, not written",
+        text: "The title is the opening line of a description, cut off at Craigslist's character limit - it was pasted in, not written",
         src: "listing title" });
     if (BROCHURE.test(words))
       concerns.push({ id: "brochure", sev: truncated ? "high" : "med",
@@ -253,7 +253,7 @@ const DEAL = (() => {
 
     if (FACTORS.isPlan(a))
       concerns.push({ id: "floor_plan", sev: "med",
-        text: "This is a floor plan the site generated, not a specific unit — the building may have something free, but not this one",
+        text: "This is a floor plan the site generated, not a specific unit - the building may have something free, but not this one",
         src: "auto-generated unit reference" });
 
     /* --- is there an apartment behind the advert at all --- */
@@ -298,7 +298,7 @@ const DEAL = (() => {
     if (a.rc === "yes")
       explains.push(`Rent control applies here (${esc(a.rc_why || "meets the SF Rent Ordinance test")}), which holds rents below market between tenancies`);
     if (a.yr && a.yr < 1950 && (a.units || 0) < 25)
-      explains.push(`A small ${a.yr} building — older walk-ups list below newer stock with the same bedroom count`);
+      explains.push(`A small ${a.yr} building - older walk-ups list below newer stock with the same bedroom count`);
     if (a.street_pct && FACTORS.streetPct(a, "violent") >= 75)
       explains.push("The block reports more incidents than most, which is reflected in what it can ask");
     if ((a.scores || {}).sound >= 75)
@@ -340,7 +340,7 @@ const DEAL = (() => {
       verdict = "bargain";
       line = explains.length
         ? "Under the going rate, and there is a reason for it that checks out."
-        : "Under the going rate with nothing out of place — genuinely rare, so move quickly but still view it.";
+        : "Under the going rate with nothing out of place - genuinely rare, so move quickly but still view it.";
     } else if (cheap) {
       verdict = "check";
       line = "Under the going rate. Worth a look, and worth verifying in person.";

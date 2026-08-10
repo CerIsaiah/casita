@@ -280,7 +280,7 @@ const GEO = (() => {
       return ((a.loc && a.loc.why) || "The source published only a neighbourhood") +
              ", so this pin is the middle of that area and every distance below could be out by half a mile in any direction.";
     if (!a.parcel_ok)
-      return "This address never matched a building on the city parcel map, so the pin — and every distance measured from it — is approximate.";
+      return "This address never matched a building on the city parcel map, so the pin - and every distance measured from it - is approximate.";
     return null;
   }
 
