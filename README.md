@@ -78,6 +78,7 @@ Four things kept surfacing:
   renting you the place is the registered owner of it.
 
 ---
+<img width="1512" height="826" alt="image" src="https://github.com/user-attachments/assets/181b9b8c-c336-4452-85a7-a2918be027c4" />
 
 ## How I approached it
 
@@ -144,6 +145,7 @@ in the project, so instead I pulled an OpenStreetMap extract of the city and run
 AI over it in the browser. A full refresh took about an hour. After that the site costs nothing to serve.
 
 ---
+<img width="752" height="735" alt="image" src="https://github.com/user-attachments/assets/249c588f-e9cc-4b84-9bfb-c63df112b9fc" />
 
 ## Design decisions
 
