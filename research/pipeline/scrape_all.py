@@ -116,5 +116,19 @@ try:
 except Exception as e:
     print("zumper failed:", e, flush=True)
 
+# Redfin is the fifth source and the most duplicative: `feedOriginalSource`
+# says ZILLOW on a large share of what comes back, and Zillow is scraped
+# directly above, so the deduper does most of the work here. It earns its place
+# on the rest -- Lovely, and Redfin's own direct-from-landlord listings -- which
+# measured about a quarter new against everything else we hold. Two requests,
+# plain JSON, no key.
+try:
+    import redfin_api
+    rf = redfin_api.harvest()
+    out["redfin"] = rf
+    print(f"redfin (free): {len(out['redfin']):,} items", flush=True)
+except Exception as e:
+    print("redfin failed:", e, flush=True)
+
 json.dump(out, open("listings_raw.json", "w"))
 print(f"\nTOTAL SPEND: ${total:.2f}", flush=True)

@@ -802,9 +802,9 @@
   };
 
   const SRC_CLASS = { Craigslist: "cl", Zillow: "zl", "Apartments.com": "ac",
-                      Zumper: "zu" };
+                      Zumper: "zu", Redfin: "rf" };
   const SRC_SHORT = { Craigslist: "CL", Zillow: "Zillow", "Apartments.com": "Apts",
-                      Zumper: "Zumper" };
+                      Zumper: "Zumper", Redfin: "Redfin" };
 
   /* Said on the card, not buried, because turning up to a flat that went two
      weeks ago is the most expensive mistake this product can let someone make.

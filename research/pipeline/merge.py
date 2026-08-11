@@ -229,8 +229,67 @@ def from_zumper(it):
     }]
 
 
+def from_redfin(it):
+    """Redfin rentals, three quarters of which we already hold.
+
+    That is fine and expected -- `feedOriginalSource` says ZILLOW on a large
+    share of them, and Zillow is scraped directly here, so the deduper is meant
+    to be busy. What this source is for is the rest: LOVELY, and REDFIN_DIY,
+    which is landlords listing without an agent.
+
+    Everything arrives as a range across the building's live units. `min` is
+    used throughout, for the same reason Zumper's `min_price` is: the cheapest
+    thing actually available is what every other source in this file calls the
+    rent, and mixing a building's ceiling into that field would make one source
+    quietly more expensive than the others.
+    """
+    home = it.get("homeData") or {}
+    rx = it.get("rentalExtension") or {}
+    info = home.get("addressInfo") or {}
+    c = (info.get("centroid") or {}).get("centroid") or {}
+    rng = lambda k: (rx.get(k) or {}).get("min")
+    url = home.get("url") or ""
+    return [{
+      "source": "Redfin",
+      "url": ("https://www.redfin.com" + url) if url.startswith("/") else (url or None),
+      "name": None,
+      "addr": (info.get("formattedStreetLine") or "").strip(),
+      "hood": None,
+      "lat": c.get("latitude"), "lon": c.get("longitude"),
+      "photos": redfin_photos(home, rx),
+      "rating": None, "fees": None,
+      "unit": norm_unit(info.get("formattedStreetLine")),
+      "rent": money(rng("rentPriceRange")), "total": None,
+      "beds": beds_of(rng("bedRange")), "baths": rng("bathRange"),
+      "sqft": rng("sqftRange"),
+      "avail": None,
+      "posted": None,
+      "desc": (rx.get("description") or "").strip() or None,
+    }]
+
+
+def redfin_photos(home, rx, cap=8):
+    """Redfin publishes no image URLs, only the pieces to build them from.
+
+    A rental id, and position ranges each carrying their own version stamp.
+    Photo 4 need not share photo 0's version, so this walks the ranges rather
+    than assuming one covers the gallery.
+    """
+    rid = rx.get("rentalId")
+    if not rid:
+        return []
+    out = []
+    for r in (home.get("photosInfo") or {}).get("photoRanges") or []:
+        for i in range(r.get("startPos", 0), r.get("endPos", 0) + 1):
+            out.append("https://ssl.cdn-redfin.com/photo/rent/"
+                       f"{rid}/islphoto/genIsl.{i}_{r.get('version')}.jpg")
+            if len(out) >= cap:
+                return out
+    return out
+
+
 ADAPT = {"apartments": from_apartments, "craigslist": from_craigslist,
-         "zillow": from_zillow, "zumper": from_zumper}
+         "zillow": from_zillow, "zumper": from_zumper, "redfin": from_redfin}
 
 
 def mark_fuzzy(rows):
