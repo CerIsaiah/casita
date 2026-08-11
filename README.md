@@ -5,7 +5,7 @@
 
 ## What Casita Does
 
-**Casita reads every rental listing in San Francisco it can reach — about 2,600 at a time from Craigslist, Zillow, and Apartments.com — and cross-references each one against the city's own records.**
+**Casita reads every rental listing in San Francisco it can reach — about 2,800 at a time from Craigslist, Zillow, and Apartments.com — and cross-references each one against the city's own records.**
 
 That includes things like:
 
@@ -136,6 +136,7 @@ per refresh rather than per visitor:
 | Service | Cost |
 |---|---|
 | Apify actor (Apartments.com) | a few cents per full sweep |
+| Gemini Flash-Lite (reads the listing photos) | ~$1.60 per full sweep |
 | RentCast (owner lookups) | 50 free/month, then $0.20/request |
 | Everything else | free |
 
@@ -249,7 +250,10 @@ cp .env.example .env         # APIFY_API_TOKEN for Apartments.com
 cd research && ./refresh.sh  # full sweep, ~1 hour
 ```
 
-Craigslist and Zillow need no key. Owner lookups need `RENTCAST_API_KEY` and are
+Craigslist and Zillow need no key. `GEMINI_API_KEY` reads the listing
+photographs - how much daylight reaches a room, whether the windows face a
+wall, and which "photos" are floor plans rather than rooms - about $1.60 and
+five minutes for the whole city. Owner lookups need `RENTCAST_API_KEY` and are
 capped at 50 a month in code, because the API costs $0.20 a request past that
 and a loop should not be able to spend real money. Everything paid is opt-in.
 
