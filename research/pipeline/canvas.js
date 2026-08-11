@@ -801,8 +801,10 @@
     exact: "good", title_address: "good", building_name: "mid", neighbourhood: "bad",
   };
 
-  const SRC_CLASS = { Craigslist: "cl", Zillow: "zl", "Apartments.com": "ac" };
-  const SRC_SHORT = { Craigslist: "CL", Zillow: "Zillow", "Apartments.com": "Apts" };
+  const SRC_CLASS = { Craigslist: "cl", Zillow: "zl", "Apartments.com": "ac",
+                      Zumper: "zu" };
+  const SRC_SHORT = { Craigslist: "CL", Zillow: "Zillow", "Apartments.com": "Apts",
+                      Zumper: "Zumper" };
 
   /* Said on the card, not buried, because turning up to a flat that went two
      weeks ago is the most expensive mistake this product can let someone make.
