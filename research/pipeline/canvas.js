@@ -40,6 +40,7 @@
     saved: new Set(),
     passed: new Set(),
     onlySaved: false, // showing the shortlist, or only the ones you kept
+    onlyPlans: false, // showing the buildings that publish layouts, not units
     sort: "fit",      // "fit" = matches what you asked for; "value" = underpriced
     hoodOpen: false,  // the area picker is folded away until asked for
   };
@@ -146,8 +147,8 @@
   }
 
   const SHOW = 60;
-  const blank = () => ({ missed: 0, rooms: 0, gone: 0, eligible: 0, underpriced: 0,
-                         by: {}, overBudget: [] });
+  const blank = () => ({ missed: 0, rooms: 0, gone: 0, plans: 0, eligible: 0,
+                         underpriced: 0, by: {}, overBudget: [] });
   let counts = blank();
 
   function rank(all) {
@@ -178,6 +179,16 @@
       // Recommending something the last sweep could not find wastes the one
       // resource this product is meant to save.
       if (a.avail === "gone" || a.avail === "no_units") { counts.gone++; continue; }
+      /* A floor plan is a real lead and not a real flat. Apartments.com
+         generates one per layout when a building will not publish its
+         vacancies, so "SI FL1-ID1921" is worth a phone call and cannot be
+         viewed, and ranking it beside places you could see on Saturday makes
+         the list quietly untrue. They get their own shelf instead of a
+         deletion, because the building may well have something. */
+      if (FACTORS.isPlan(a) !== S.onlyPlans) {
+        if (!S.onlyPlans) counts.plans++;
+        continue;
+      }
       // The saved view is a view of things you already chose, so it ignores
       // the area filter -- hiding a flat you saved because you have since
       // clicked a different district would look like losing it.
@@ -250,7 +261,7 @@
       </div>
       ${S.hoodOpen ? `<div class="hoodpanel">
         <div class="hoodrow">
-          <button class="hoodchip ${!S.district && !S.onlySaved ? "on" : ""}" data-district="">All of SF</button>
+          <button class="hoodchip ${!S.district && !S.onlySaved && !S.onlyPlans ? "on" : ""}" data-district="">All of SF</button>
           ${ds.map((d) => `<button class="hoodchip ${d.name === S.district ? "on" : ""}"
             data-district="${esc(d.name)}">${ICON.svg(d.icon, 14)}${esc(d.name)}
             <em>${d.n}</em></button>`).join("")}
@@ -274,6 +285,14 @@
     const n = (S.list || []).length;
     if (!n) return "";
     const where = S.hood || S.district || "San Francisco";
+    if (S.onlyPlans) {
+      return `<div class="leadin">
+        <h2>Buildings worth a call</h2>
+        <p>${n} building${n === 1 ? "" : "s"} that publish a layout and a price but never
+           name a vacant flat. There may well be something free - you cannot book a viewing
+           from the page, so ring them rather than turning up.</p>
+      </div>`;
+    }
     if (S.onlySaved) {
       return `<div class="leadin">
         <h2>Saved</h2>
@@ -420,8 +439,11 @@
 
      Each one carries its quote, because an extractor working on marketing copy
      will sometimes be wrong and the reader should be able to see that for
-     themselves rather than take the label on trust. Nothing here moves the
-     score; these are facts to read, not points to award. */
+     themselves rather than take the label on trust. That matters more now than
+     it used to: these fed nothing but this panel for a long time, so a lovely
+     flat and a dull one at the same price scored the same. They feed the
+     "Standout features" factor as well, which means a wrong label costs
+     something, which is exactly why the sentence stays attached to it. */
   function qualitiesHTML(a) {
     const qs = a.qualities || [];
     if (!qs.length) {
@@ -437,8 +459,10 @@
     return `<p class="lab">What it's like inside</p>
       <div class="quals">${qs.map((q) => `
         <details class="qual q-${q.pol > 0 ? "up" : q.pol < 0 ? "down" : "flat"}">
-          <summary>${esc(q.label)}</summary>
+          <summary>${esc(q.label)}${q.hedge ? `<i class="qhedge">some units</i>` : ""}</summary>
           <p>"${esc(q.quote)}"</p>
+          ${q.hedge ? `<p class="fine">The advert promises this to some flats in the building
+            without saying it is one of them - worth asking about this one specifically.</p>` : ""}
         </details>`).join("")}</div>
       ${a.sqft_said && !a.sqft ? `<p class="fine">The advert says ${num(a.sqft_said)} sq ft;
         the listing has no square-footage field, so this is the text's word for it.</p>` : ""}`;
@@ -746,12 +770,18 @@
         </button>`;
       }).join("")}</div>
       <button class="film-arrow" data-scroll="1">›</button></div>
-      <p class="film-note">Top ${num(S.list.length)} of ${num(counts.eligible)} buildings that
-        clear your requirements${counts.rooms
-          ? ` · ${num(counts.rooms)} rooms and shares left out` : ""}${counts.gone
-          ? ` · ${num(counts.gone)} no longer listed` : ""}.
-        ${counts.missed ? `<button class="linkish" onclick="CASITA.editPriorities()">${
-          num(counts.missed)} ruled out by your budget and bedrooms</button> -` : ""}
+      <p class="film-note">${S.onlyPlans
+        ? `${num(S.list.length)} building${S.list.length === 1 ? "" : "s"} publishing layouts
+           rather than vacancies - call before you plan a viewing.
+           <button class="linkish" data-plans="1">Back to places you can see</button> -`
+        : `Top ${num(S.list.length)} of ${num(counts.eligible)} buildings that
+           clear your requirements${counts.rooms
+             ? ` · ${num(counts.rooms)} rooms and shares left out` : ""}${counts.gone
+             ? ` · ${num(counts.gone)} no longer listed` : ""}.
+           ${counts.plans ? `<button class="linkish" data-plans="1">${num(counts.plans)}
+             floor plans set aside</button> -` : ""}
+           ${counts.missed ? `<button class="linkish" onclick="CASITA.editPriorities()">${
+             num(counts.missed)} ruled out by your budget and bedrooms</button> -` : ""}`}
         scraped ${ago(scrapedAt())}. Use ← → to move.</p>`;
     const sel = el.querySelector(".film-card.on");
     if (sel) sel.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
@@ -1833,6 +1863,7 @@
     const t = e.target.closest("[data-tab],[data-pick],[data-step],[data-act],[data-scroll]," +
       "[data-street],[data-open],[data-zoom],[data-recenter],[data-theme-set],[data-photo]," +
       "[data-walk],[data-hood],[data-district],[data-saved],[data-hoodtoggle],[data-sort]," +
+      "[data-plans]," +
       "#ownerbtn,#recheck,#deepbtn");
     if (!t) return;
     if (t.dataset.tab) return setTab(t.dataset.tab);
@@ -1896,6 +1927,13 @@
     }
     if (t.dataset.saved !== undefined) {
       S.onlySaved = !S.onlySaved;
+      if (S.onlySaved) S.onlyPlans = false;
+      applyHood();
+      return;
+    }
+    if (t.dataset.plans !== undefined) {
+      S.onlyPlans = !S.onlyPlans;
+      if (S.onlyPlans) S.onlySaved = false;
       applyHood();
       return;
     }

@@ -148,6 +148,7 @@ const QUIZ = (() => {
     ["transit", "train", "Transit"], ["walk", "walk", "Walkability"],
     ["nightlife", "wine", "Nightlife"], ["grocery", "cart", "Grocery access"],
     ["gym", "dumbbell", "Gym access"], ["commute", "briefcase", "Short commute"],
+    ["character", "sparkle", "Standout features"],
   ];
 
   const IMP_LABEL = [["nice", "Nice to have"], ["high", "Important"], ["vhigh", "Very important"]];

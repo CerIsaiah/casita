@@ -147,6 +147,18 @@ const FACTORS = (() => {
     return t ? curve(GEO.metres(a.lat, a.lon, t.lat, t.lon), pts) : null;
   }
 
+  /* The factors whose answer is a distance, and which are therefore only as
+     true as the dot they were measured from. Every one of these has its
+     confidence scaled by GEO.pinTrust in evaluate(); the rest — price, size,
+     reviews, whether the advert is believable — are properties of the record
+     and do not care where the building is.
+
+     Street conditions and quiet nights belong here even though they read city
+     datasets rather than walking distances: both are keyed to the block under
+     the pin, so a pin in the wrong block reads the wrong block's crime. */
+  const GEO_KEYS = new Set(["quiet", "street", "transit", "walk", "nightlife",
+                            "grocery", "gym", "commute"]);
+
   /* ---------- the registry ----------
      Each factor answers four questions about one apartment:
 
@@ -379,7 +391,10 @@ const FACTORS = (() => {
         }
         return burden / w;
       },
-      conf: (a) => a.parcel_ok ? 0.8 : 0.5,
+      // How good the routing is, not how good the pin is — GEO.pinTrust now
+      // applies the second half to every distance factor alike, and asking
+      // about parcel_ok here as well charged that one fact twice.
+      conf: () => 0.8,
       why(a, P) {
         const l = GEO.legs(a, P).filter((x) => x.fixed)[0];
         return l ? `${l.mins} min to ${l.label}` : "Short trips to your places";
@@ -529,6 +544,13 @@ const FACTORS = (() => {
       label: "Shows the actual unit", icon: "window", tab: "verify",
       quizzable: false, baseW: 1.2,
       raw(a) {
+        /* A floor plan publishes an amenity list, a floor area and a
+           "verified" rent, and every one of those describes the plan rather
+           than a flat you could stand in. Reading them as unit evidence scored
+           220 Lombard's "SI FL1-ID1921" at 88 on the one factor whose entire
+           job is to notice that it is not a unit — the placeholder's defining
+           property counted as its strongest proof. */
+        if (isPlan(a)) return 5;
         let v = 25;
         const am = (a.unit_amen || []).length;
         if (am) v += 18 + Math.min(14, am * 3);   // its own amenity list
@@ -549,9 +571,71 @@ const FACTORS = (() => {
         return `${num(a.sqft)} sq ft published for this unit`;
       },
       but(a) {
+        if (isPlan(a))
+          return "A floor plan the site generated, not a flat - the amenities and floor area describe the layout, not anything you could rent today";
         if ((a.photos || []).length >= 4)
           return `${a.photos.length} photos but nothing specific to this unit - you may be looking at the building, not the flat`;
         return "Nothing published about this specific unit - ask what you'd actually be renting";
+      },
+    },
+
+    /* ---------- what the flat is actually like ----------
+       Everything else in this registry scores the listing's surroundings or
+       its credibility. None of it answers the question a person actually asks
+       standing in a doorway: is this a nice place to live?
+
+       That answer is not a structured field on any of the three sources. It is
+       in the prose — two floors, a view worth sitting in front of, light, a
+       top floor, a patio of your own — and on the other side, the things an
+       advert has to admit: the manager on the same landing, a ground-floor
+       window onto the pavement, a bedroom with no window. add_qualities.py has
+       been reading all of it for a while and it only ever reached a panel, so
+       a beautiful flat and a dull one at the same price scored identically.
+
+       Rule 2 governs the whole factor: a listing with no description is not a
+       listing without a view, it is one we cannot read, and it returns null
+       rather than a low number. That is why this is worth having as its own
+       factor instead of folded into an existing one — the missingness is
+       specific to prose, and 2,834 of 2,847 listings have some. */
+    character: {
+      label: "Standout features", icon: "sparkle", tab: "verify", quizzable: true,
+      baseW: 0.9,
+      raw(a) {
+        if (a.text_read === false) return null;
+        const qs = a.qualities || [];
+        let v = 50;                          // a flat that was described plainly
+        for (const q of qs) {
+          if (!q.pol) continue;              // "manager on site" cuts both ways
+          // A hedged claim is the building's, not the flat's. It counts,
+          // because "select homes have balconies" does mean balconies exist
+          // here, but it cannot count like a promise.
+          const worth = q.hedge ? 4 : 11;
+          v += q.pol > 0 ? worth : -(worth + 4);
+        }
+        // Floor area is the least arguable nice-to-have there is, and a third
+        // of these numbers only exist because the advert wrote them in prose.
+        const sq = a.sqft || a.sqft_said;
+        if (sq) v += curve(sq, [[350, -8], [600, 0], [900, 7], [1400, 12]]);
+        return cl(v, 0, 100);
+      },
+      /* How much prose there was to read. A two-line Craigslist post that
+         mentions nothing is weak evidence of a flat with nothing; a thousand
+         words that never mention a view is rather stronger. */
+      conf(a) {
+        if (a.text_read === false) return 0;
+        const n = ((a.desc && a.desc !== "None" ? a.desc : "") || "").length;
+        return cl(0.3 + n / 1600, 0.3, 0.85);
+      },
+      why(a) {
+        const good = (a.qualities || []).filter((q) => q.pol > 0);
+        if (!good.length) return `${num(a.sqft || a.sqft_said)} sq ft`;
+        const names = good.slice(0, 2).map((q) => q.label.toLowerCase());
+        return names.join(" and ") + (good.length > 2 ? ` and ${good.length - 2} more` : "");
+      },
+      but(a) {
+        const bad = (a.qualities || []).find((q) => q.pol < 0);
+        if (bad) return `${bad.label} - "${bad.quote.slice(0, 90)}"`;
+        return "The advert describes the flat itself in no particular detail";
       },
     },
 
@@ -834,7 +918,12 @@ const FACTORS = (() => {
       for (const k of keys) {
         const raw = raws.get(k).get(a.id);
         const pct = pctOf(k, raw);
-        const c = raw == null ? 0 : cl(REG[k].conf(a, P) ?? 0.5, 0, 1);
+        // A factor's own confidence answers "how good is this measurement".
+        // For anything measured from the map pin there is a second question —
+        // "of what" — and the pin can be the middle of a district. Both belong
+        // in the same number, and this is the only place it is computed.
+        const c = raw == null ? 0
+          : cl((REG[k].conf(a, P) ?? 0.5) * (GEO_KEYS.has(k) ? GEO.pinTrust(a) : 1), 0, 1);
         // Pull an uncertain observation toward neutral instead of trusting or
         // punishing it. This is what costs the top of the field its ceiling,
         // and it is worth the cost: the alternative rewards listings we know

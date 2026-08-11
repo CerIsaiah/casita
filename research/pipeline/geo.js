@@ -288,11 +288,39 @@ const GEO = (() => {
   // Printing "6 min" off a pin that could be half a mile out is the sort of
   // false precision this whole file exists to avoid.
   const soft = (a) => (a.loc || {}).level === "neighbourhood" || !a.parcel_ok;
+
+  /* How much of a distance claim survives the pin being a guess.
+
+     `soft` answers yes or no, which is what prose needs. Scoring needs the
+     degree, because for a long time it had neither: every factor measured from
+     this dot — nightlife, walkability, street conditions, the commute — was
+     scored at full confidence whether the dot was a surveyed address or the
+     middle of a district. A listing that published no address could outrank
+     one that did on walkability, and the caption under the map admitted the
+     pin "could be out by half a mile in any direction" while the number above
+     it was computed as though it could not.
+
+     Levels rather than a product, because these signals are not independent:
+     every listing here that geocoded to a neighbourhood also failed the parcel
+     match, so multiplying the two would charge one fact twice.
+
+       exact + on the parcel map    the source named a building, the city has it
+       exact, no parcel match       an address the city does not recognise
+       recovered from listing text  locate.py found it, then checked it
+       neighbourhood                the middle of an area half a mile across */
+  function pinTrust(a) {
+    const lv = (a.loc || {}).level;
+    if (lv === "neighbourhood") return 0.45;
+    if (lv === "title_address" || lv === "building_name") return 0.75;
+    return a.parcel_ok ? 1 : 0.7;
+  }
+
   function minsText(a, mins) {
     return soft(a) ? `${Math.max(1, Math.round(mins * 0.6))}–${Math.round(mins * 1.6)} min`
                    : `${mins} min`;
   }
 
   return { metres, minutesTo, autoMode, nearest, countWithin, legs,
-           anchorFor, pinNote, minsText, soft, walk, walksFor, WALKS, ERRANDS, PL };
+           anchorFor, pinNote, minsText, soft, pinTrust, walk, walksFor,
+           WALKS, ERRANDS, PL };
 })();

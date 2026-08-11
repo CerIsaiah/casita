@@ -105,6 +105,18 @@ NOT_THE_UNIT = re.compile(
     r"parking|garage|amenit(?:y|ies)|gym|lounge|leasing\s+office|mail\s?room|rooftop|roof\s+deck|common\s+area|shared\s+(?:deck|terrace|roof))\b", re.I)
 
 
+# Marketing copy that promises the quality to somebody, without promising it
+# here. "Select homes boast a private balcony" is true of the building and says
+# nothing about the flat you would be renting; "spanning up to 1,366 square
+# feet" is the largest one. Both are worth showing -- it is a real thing the
+# building has -- but scoring them as facts about this unit repeats the mistake
+# the floor-plan placeholders made, so they carry a flag and count for less.
+HEDGED = re.compile(
+    r"\b(select|some|certain)\s+(homes?|units?|apartments?|residences?|floor\s?plans?)"
+    r"|\bup\s+to\b|\bmay\s+(?:vary|include|feature)|\bfloor\s?plans?\s+vary"
+    r"|\bin\s+select\b|\bhomes?\s+feature\b", re.I)
+
+
 def about_the_unit(text, m, window=70):
     """False when the sentence is describing the building around the match."""
     near = text[max(0, m.start() - window):m.end() + window]
@@ -148,7 +160,7 @@ def read(a):
 def main():
     data = json.load(open(DATA))
     found = {k: 0 for k, _, _, _ in QUALITIES}
-    sqft_from_text = readable = 0
+    sqft_from_text = readable = hedged = 0
 
     for a in data:
         text = read(a)
@@ -172,8 +184,12 @@ def main():
             if not m:
                 continue
             found[key] += 1
-            out.append({"k": key, "label": label, "pol": polarity,
-                        "quote": sentence_around(text, m)})
+            quote = sentence_around(text, m)
+            q = {"k": key, "label": label, "pol": polarity, "quote": quote}
+            if HEDGED.search(quote):
+                q["hedge"] = True
+                hedged += 1
+            out.append(q)
         if out:
             a["qualities"] = out
 
@@ -188,6 +204,7 @@ def main():
     atomicjson.dump(data, str(DATA))
     print(f"  listings with readable text: {readable:,} of {len(data):,}")
     print(f"  square footage recovered from prose: {sqft_from_text:,}")
+    print(f"  claims hedged by the advert ('select homes', 'up to'): {hedged:,}")
     for key, label, _, _ in QUALITIES:
         if found[key]:
             print(f"    {label:28} {found[key]:>5}")
