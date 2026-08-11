@@ -49,6 +49,11 @@ python3 locate.py              # recover addresses Craigslist hid, from the list
 python3 add_descriptions.py    # craigslist posting bodies (free)
 python3 add_zillow_apify.py    # zillow prose + floor area (~$3, the only paid description step)
 python3 add_qualities.py       # view, two levels, top floor, on-site manager, from the prose
+# What the pictures show and the advert does not: light, a blocked outlook,
+# tired fittings, and which "photos" are floor plans rather than rooms. About
+# $1.60 for the full set and five minutes, so it runs after the prose steps
+# rather than instead of them - they are free and they cover different ground.
+uv run --with pillow --with google-genai python add_photo_review.py
 
 # One builder, not two. This step used to inline its own copy of the page
 # assembly, which predated build_pages.py and had drifted: it knew nothing about

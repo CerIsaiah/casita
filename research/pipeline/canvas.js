@@ -444,9 +444,42 @@
      flat and a dull one at the same price scored the same. They feed the
      "Standout features" factor as well, which means a wrong label costs
      something, which is exactly why the sentence stays attached to it. */
+  /* What the photographs showed, as chips alongside what the advert claimed.
+
+     Deliberately the same shape as the prose ones, because to a reader they
+     answer the same question - and deliberately labelled "seen in the photos",
+     because they do not have the same standing. An advert saying "bright and
+     airy" is a claim by somebody selling; a photograph of a window facing a
+     wall is not selling anything. Where the two disagree the reader should
+     know which is which.
+
+     Each opens to the frame it came from, so the evidence is one click away
+     rather than a label to be trusted - the same rule as the quoted sentence. */
+  const SEEN = {
+    light:     { bright: ["Bright", 1], dim: ["Dim rooms", -1] },
+    view:      { open: ["An open outlook", 1], blocked: ["Windows face a wall", -1] },
+    condition: { renovated: ["Recently done up", 1], tired: ["Tired fittings", -1] },
+    outdoor:   { private: ["Private outdoor space", 1], shared: ["Shared outdoor space", 0] },
+  };
+
+  function photoChips(a) {
+    const r = a.photo_review;
+    if (!r) return [];
+    const out = [];
+    for (const k in SEEN) {
+      const hit = SEEN[k][r[k]];
+      if (hit) out.push({ label: hit[0], pol: hit[1], photo: r[k + "_photo"] });
+    }
+    if (r.two_level) out.push({ label: "Two levels", pol: 1, photo: null });
+    for (const n of (r.notable || []).slice(0, 3))
+      out.push({ label: n, pol: 0, photo: null, plain: true });
+    return out;
+  }
+
   function qualitiesHTML(a) {
     const qs = a.qualities || [];
-    if (!qs.length) {
+    const seen = photoChips(a);
+    if (!qs.length && !seen.length) {
       // Silence here means we could not read the advert, not that the flat is
       // plain. Saying which is the difference between a gap and a verdict.
       return a.text_read === false
@@ -456,13 +489,22 @@
              listing to see what the advert actually says.</p>`
         : "";
     }
+    const cls = (p) => `q-${p > 0 ? "up" : p < 0 ? "down" : "flat"}`;
     return `<p class="lab">What it's like inside</p>
       <div class="quals">${qs.map((q) => `
-        <details class="qual q-${q.pol > 0 ? "up" : q.pol < 0 ? "down" : "flat"}">
+        <details class="qual ${cls(q.pol)}">
           <summary>${esc(q.label)}${q.hedge ? `<i class="qhedge">some units</i>` : ""}</summary>
           <p>"${esc(q.quote)}"</p>
           ${q.hedge ? `<p class="fine">The advert promises this to some flats in the building
             without saying it is one of them - worth asking about this one specifically.</p>` : ""}
+        </details>`).join("")}
+        ${seen.map((s) => `
+        <details class="qual seen ${cls(s.pol)}">
+          <summary>${esc(s.label)}<i class="qseen">photo</i></summary>
+          <p>${s.plain
+            ? "Read off the listing's own photographs."
+            : `Seen in the photographs${s.photo != null
+                ? `, frame ${s.photo + 1}` : ""} - the advert does not have to mention it.`}</p>
         </details>`).join("")}</div>
       ${a.sqft_said && !a.sqft ? `<p class="fine">The advert says ${num(a.sqft_said)} sq ft;
         the listing has no square-footage field, so this is the text's word for it.</p>` : ""}`;
@@ -546,6 +588,7 @@
             <b style="color:${tone(f.score)}">${f.score}</b>
             <span style="color:${tone(f.score)}">${f.label}</span>
             <button class="why-score" data-open="score" aria-label="Why this score?">i</button>
+            ${shapeHTML(a)}
           </div>
         </div>
 
@@ -600,17 +643,43 @@
      Photo index is held per listing rather than globally, so paging through
      the filmstrip and coming back does not reset you to the first frame. */
   const photoIdx = new Map();
-  const photosOf = (a) => (a.photos && a.photos.length ? a.photos
-                          : a.photo ? [a.photo] : []);
+  /* Two corrections from add_photo_review.py, which actually looked at these.
+     2,970 of 13,545 photographs across this data set are not the flat at all -
+     floor plans, brokerage logos, maps, and agent headshots - and they were
+     being paged through as though they were rooms. The first frame is the one
+     that best shows what living there is like, rather than whichever image the
+     source happened to put first, which is very often the logo.
+
+     If the review somehow rejects everything, keep the original list: an empty
+     gallery is worse than a wrong first frame. */
+  const photosOf = (a) => {
+    const all = a.photos && a.photos.length ? a.photos : a.photo ? [a.photo] : [];
+    const r = a.photo_review;
+    if (!r || all.length < 2) return all;
+    const junk = new Set(r.not_the_unit || []);
+    const keep = all.map((u, i) => [u, i]).filter(([, i]) => !junk.has(i));
+    if (!keep.length) return all;
+    const b = keep.findIndex(([, i]) => i === r.best_photo);
+    if (b > 0) keep.unshift(...keep.splice(b, 1));
+    return keep.map(([u]) => u);
+  };
 
   function heroHTML(a, t) {
     const ph = photosOf(a);
     const i = Math.min(photoIdx.get(a.id) || 0, Math.max(0, ph.length - 1));
     const dog = a.pet && a.pet.dogs;
+    /* The picture is the thing everyone tries to click first, and for a long
+       time it did nothing. Only the photograph is wrapped, not the whole hero:
+       the arrows and dots sit inside this box too, and making them navigate
+       away mid-gallery would be worse than not linking at all. */
+    const url = (a.src && a.src[0] || {}).u;
     return `<div class="hero" id="hero">
       ${ph.length
-        ? `<img src="${esc(ph[i])}" alt="Photo ${i + 1} of ${ph.length}"
-             fetchpriority="high" decoding="async" onerror="CASITA.retryImg(this)">`
+        ? `${url ? `<a class="hero-link" href="${esc(url)}" target="_blank" rel="noopener"
+               title="Open this listing on ${esc((a.src[0] || {}).n || "the source")}">` : ""}
+           <img src="${esc(ph[i])}" alt="Photo ${i + 1} of ${ph.length}"
+             fetchpriority="high" decoding="async" onerror="CASITA.retryImg(this)">
+           ${url ? `<span class="hero-open">${esc((a.src[0] || {}).n || "Open")} ↗</span></a>` : ""}`
         : `<div class="hero-none">No photo published</div>`}
       ${t ? `<span class="hero-tag ${t.c}">${t.t}</span>` : ""}
       ${dog ? `<span class="hero-dog">${ICON.svg("dog", 13)}Dogs OK</span>` : ""}
@@ -643,6 +712,27 @@
 
      So an unplaced listing is titled by what we actually know: its size and
      its neighbourhood. The parcel guess is not shown at all. */
+  /* What you are actually being offered, next to the number that judges it.
+     A fit score with nothing beside it invites the reader to take it on faith;
+     "94 · Studio · 396 sq ft" lets them disagree with it immediately, which is
+     the more useful reaction. Bathrooms only when there is more than one,
+     since one is the assumption and saying so costs a line for nothing.
+
+     Floor area is marked when it came out of the advert's prose rather than a
+     size field, because add_qualities.py pulled it out of a sentence and that
+     is a weaker claim than a number the source published. */
+  function shapeHTML(a) {
+    const bits = [];
+    if (a.beds != null) bits.push(a.beds === 0 ? "Studio" : `${a.beds} bed`);
+    if (a.baths && a.baths > 1) bits.push(`${a.baths} bath`);
+    const sq = a.sqft || a.sqft_said;
+    if (sq) bits.push(`${num(sq)} sq ft${a.sqft ? "" : "*"}`);
+    if (!bits.length) return "";
+    return `<em class="shape"${a.sqft || !sq ? "" :
+      ` title="The advert says so in its text; the listing has no size field"`
+      }>${bits.join(" · ")}</em>`;
+  }
+
   function titleOf(a) {
     if ((a.loc || {}).level !== "neighbourhood")
       // A generated plan reference is not an apartment number; show the
@@ -681,9 +771,13 @@
      weeks ago is the most expensive mistake this product can let someone make.
      "Unchecked" is its own state: Zillow publishes no free way to ask, and
      rendering that as "available" would be inventing a fact. */
+  /* Only the problems get a chip. "Verified live" was on almost everything
+     here, and a label that is true of nearly the whole list is decoration: it
+     taught the reader to skim past exactly the row where "May be gone" or
+     "Floor plan, not a unit" was going to appear. Being on the market is the
+     assumption; the chip is for when that assumption breaks. */
   const AVAIL = {
-    live:     { t: "Verified live", c: "live",
-                why: (a) => `Present in the latest ${a.avail_src || "sweep"}` },
+    live:     null,
     plan:     { t: "Floor plan, not a unit", c: "unknown",
                 why: () => "The site generated this from a floor plan; the building may have "
                          + "something free, but this particular unit is not a real vacancy" },
@@ -1485,7 +1579,9 @@
          <div class="row"><span>What that means</span>
            <b>${esc(a.avail_src || "the site")} generated this reference; ask the building what is actually free</b></div>`
       : a.avail === "live"
-      ? `<div class="row"><span>Still listed</span><b class="pill good">Verified live</b></div>
+      // The row already asks "Still listed"; "Verified live" was answering a
+      // question nobody put, in two words where one does.
+      ? `<div class="row"><span>Still listed</span><b class="pill good">Yes</b></div>
          <div class="row"><span>How we know</span><b>${esc(a.avail_src || "availability sweep")}</b></div>`
       : a.avail === "unknown"
         ? `<div class="row"><span>Still listed</span><b class="pill mid">Not checked</b></div>

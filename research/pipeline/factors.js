@@ -601,7 +601,8 @@ const FACTORS = (() => {
       label: "Standout features", icon: "sparkle", tab: "verify", quizzable: true,
       baseW: 0.9,
       raw(a) {
-        if (a.text_read === false) return null;
+        const pr = a.photo_review;
+        if (a.text_read === false && !pr) return null;
         const qs = a.qualities || [];
         let v = 50;                          // a flat that was described plainly
         for (const q of qs) {
@@ -612,6 +613,29 @@ const FACTORS = (() => {
           const worth = q.hedge ? 4 : 11;
           v += q.pol > 0 ? worth : -(worth + 4);
         }
+        /* What the photographs show, which outranks what the advert claims:
+           an advert says "bright and airy" because it is selling, a photograph
+           of a window facing a brick wall is not selling anything. 808 of
+           these listings turn out to have a blocked outlook and almost none of
+           them mention it.
+
+           Weighted a little harder than the prose for that reason, and the
+           negatives harder than the positives, because a dim room is a fact
+           you live with daily and "renovated" is a kitchen you stop noticing.
+           Nulls are genuine here - the model was told to say so when the
+           photos do not show a window rather than guess. */
+        if (pr) {
+          const S = {
+            light:     { bright: +13, average: 0, dim: -16 },
+            view:      { open: +13, ordinary: 0, blocked: -14 },
+            condition: { renovated: +9, maintained: 0, tired: -15 },
+            outdoor:   { private: +11, shared: +3, none: 0 },
+          };
+          for (const k in S) v += S[k][pr[k]] || 0;
+          // Only when the prose did not already claim it, or a two-floor flat
+          // counts twice for being both photographed and described.
+          if (pr.two_level && !qs.some((q) => q.k === "two_level")) v += 11;
+        }
         // Floor area is the least arguable nice-to-have there is, and a third
         // of these numbers only exist because the advert wrote them in prose.
         const sq = a.sqft || a.sqft_said;
@@ -621,18 +645,35 @@ const FACTORS = (() => {
       /* How much prose there was to read. A two-line Craigslist post that
          mentions nothing is weak evidence of a flat with nothing; a thousand
          words that never mention a view is rather stronger. */
+      /* Evidence read off photographs is worth more than evidence read off
+         marketing copy, so a reviewed listing starts higher and a described
+         one climbs with how much there was to read. */
       conf(a) {
-        if (a.text_read === false) return 0;
         const n = ((a.desc && a.desc !== "None" ? a.desc : "") || "").length;
-        return cl(0.3 + n / 1600, 0.3, 0.85);
+        const text = a.text_read === false ? 0 : cl(0.25 + n / 1800, 0.25, 0.7);
+        return cl(text + (a.photo_review ? 0.3 : 0), 0, 0.9);
       },
       why(a) {
-        const good = (a.qualities || []).filter((q) => q.pol > 0);
-        if (!good.length) return `${num(a.sqft || a.sqft_said)} sq ft`;
-        const names = good.slice(0, 2).map((q) => q.label.toLowerCase());
-        return names.join(" and ") + (good.length > 2 ? ` and ${good.length - 2} more` : "");
+        const pr = a.photo_review || {};
+        const seen = [];
+        if (pr.light === "bright") seen.push("bright in the photos");
+        if (pr.view === "open") seen.push("an open outlook");
+        if (pr.outdoor === "private") seen.push("its own outdoor space");
+        if (pr.condition === "renovated") seen.push("recently done up");
+        const said = (a.qualities || []).filter((q) => q.pol > 0)
+          .map((q) => q.label.toLowerCase());
+        const all = [...new Set([...seen, ...said])];
+        if (!all.length) return `${num(a.sqft || a.sqft_said)} sq ft`;
+        return all.slice(0, 2).join(" and ")
+             + (all.length > 2 ? ` and ${all.length - 2} more` : "");
       },
       but(a) {
+        const pr = a.photo_review || {};
+        // The photographs first: a window onto a wall is a thing the reader
+        // can verify in one click, and the advert never said it.
+        if (pr.view === "blocked") return "The windows look onto a wall or a lightwell";
+        if (pr.light === "dim") return "The rooms look dim in every photo that shows one";
+        if (pr.condition === "tired") return "Fittings look tired in the photos";
         const bad = (a.qualities || []).find((q) => q.pol < 0);
         if (bad) return `${bad.label} - "${bad.quote.slice(0, 90)}"`;
         return "The advert describes the flat itself in no particular detail";
