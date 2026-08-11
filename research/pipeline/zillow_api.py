@@ -9,6 +9,7 @@ import json, re, sys, time, urllib.parse, urllib.request
 
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+SPLIT_ABOVE = 300      # keep bands inside the range Zillow pages reliably
 BOUNDS = {"west": -122.5170, "east": -122.3560, "south": 37.7040, "north": 37.8340}
 
 
@@ -80,30 +81,62 @@ def harvest(lo=None, hi=None, seen=None, out=None, depth=0):
     if first is None:
         return out
     pad = "  " * depth
-    # Zillow caps a single search around 800 results; split the price band if needed
-    if total > 780 and depth < 6 and hi and lo is not None and hi - lo > 150:
+    # Split well below what a single search can hold, not at the ceiling.
+    #
+    # The old threshold was 780, just under Zillow's ~800 cap, which meant a
+    # 658-result band never split and had to be paged seventeen times. Zillow
+    # reshuffles results between requests, so those pages overlap heavily and a
+    # page arrives with nothing new long before the band is exhausted -- and
+    # the loop below used to treat that as "done". Measured on $0-3750: 658
+    # reported, 470 collected, and which 188 went missing changed run to run.
+    #
+    # That is how a friend's $3,000 one-bed at 140 S Van Ness (zpid 64969415)
+    # was absent from a scrape while sitting on page four of the same query.
+    #
+    # Smaller bands page reliably, and the depth and width limits are relaxed
+    # to let the recursion actually reach them. Zillow is free, so the extra
+    # requests cost only time.
+    if total > SPLIT_ABOVE and depth < 9 and hi and lo is not None and hi - lo > 25:
         mid = (lo + hi) // 2
         print(f"{pad}${lo}-{hi}: {total} over cap, splitting at {mid}", flush=True)
         harvest(lo, mid, seen, out, depth + 1)
         harvest(mid, hi, seen, out, depth + 1)
         return out
     added = 0
+    band = set()                       # zpids seen in THIS band, for the stop test
     for r in first:
         z = r.get("zpid")
-        if z and z not in seen:
-            seen.add(z); out.append(norm(r)); added += 1
-    pages = min(20, max(1, -(-total // 40)))
+        if z:
+            band.add(z)
+            if z not in seen:
+                seen.add(z); out.append(norm(r)); added += 1
+
+    pages = min(25, max(1, -(-total // 40)))
+    dry = 0
     for p in range(2, pages + 1):
         res, _ = fetch(p, lo, hi)
-        if not res: break
-        new = 0
+        if not res:
+            break
+        fresh = 0
         for r in res:
             z = r.get("zpid")
-            if z and z not in seen:
-                seen.add(z); out.append(norm(r)); new += 1; added += 1
-        if new == 0: break
+            if not z:
+                continue
+            if z not in band:
+                fresh += 1
+            band.add(z)
+            if z not in seen:
+                seen.add(z); out.append(norm(r)); added += 1
+        # Two consecutive pages with nothing new to THIS band, not one page with
+        # nothing new overall. See the note above SPLIT_ABOVE.
+        dry = dry + 1 if fresh == 0 else 0
+        if dry >= 2:
+            break
         time.sleep(1.2)
-    print(f"{pad}${lo}-{hi}: {total} total, +{added} new", flush=True)
+
+    got = len(band)
+    short = f"  (!! {total - got} short)" if total and got < total * 0.9 else ""
+    print(f"{pad}${lo}-{hi}: {total} total, {got} seen, +{added} new{short}", flush=True)
     return out
 
 
