@@ -38,7 +38,12 @@
     district: null,   // part of town, the coarse filter people actually think in
     hood: null,       // a specific area inside it, or null for the whole district
     saved: new Set(),
+    // Both survive a reload now. A pass that forgets itself means yesterday's
+    // rejects are back on top of today's list, which is the one thing this
+    // product is supposed to save you from.
     passed: new Set(),
+    opened: new Set(),
+    showPassed: false, // temporarily un-hide what you passed, to undo one
     onlySaved: false, // showing the shortlist, or only the ones you kept
     onlyPlans: false, // showing the buildings that publish layouts, not units
     sort: "fit",      // "fit" = matches what you asked for; "value" = underpriced
@@ -97,6 +102,31 @@
      The wording is deliberate. We know when a listing first appeared in OUR
      data; we do not know when it first appeared anywhere, and saying "new
      listing" would be a claim about the market we cannot support. */
+  /* ---------- what you have already looked at ----------
+     Deliberately not "what scrolled past". Resting on a card for three seconds
+     is an accident of how fast you arrow; clicking through to Zillow is a
+     decision, and it is the only signal here that reliably means "I gave this
+     one my attention". So opening the advert is what counts, and nothing else
+     marks a listing.
+
+     Viewed listings keep their rank. The best flat for you is still the best
+     flat after you have looked at it, and reordering on that basis would mean
+     the list no longer answers the question it claims to. They only dim, which
+     is enough to see at a glance what is new.
+
+     `casita.seen.v1` is a different thing and stays: it remembers what the
+     data set held last session so a price drop can be spotted, and it is
+     written for every listing whether or not you ever saw it. */
+  const OPENED_KEY = "casita.opened.v1";
+  const PASSED_KEY = "casita.passed.v1";
+  const loadSet = (k) => {
+    try { return new Set(JSON.parse(localStorage.getItem(k)) || []); }
+    catch { return new Set(); }
+  };
+  const saveSet = (k, s) => {
+    try { localStorage.setItem(k, JSON.stringify([...s])); } catch {}
+  };
+
   const MEM_KEY = "casita.seen.v1";
   const MEM = (() => { try { return JSON.parse(localStorage.getItem(MEM_KEY)) || {}; } catch { return {}; } })();
   const firstRun = !Object.keys(MEM).length;
@@ -147,15 +177,19 @@
   }
 
   const SHOW = 60;
-  const blank = () => ({ missed: 0, rooms: 0, gone: 0, plans: 0, eligible: 0,
-                         underpriced: 0, by: {}, overBudget: [] });
+  const blank = () => ({ missed: 0, rooms: 0, gone: 0, plans: 0, passed: 0,
+                         eligible: 0, underpriced: 0, by: {}, overBudget: [] });
   let counts = blank();
 
   function rank(all) {
     const best = new Map();
     counts = blank();
     for (const a of all) {
-      if (S.passed.has(a.id)) continue;
+      // Counted, not silently dropped: a pass now outlives the session, so
+      // the number you rejected is something you should be able to see and
+      // take back. A misclick that permanently deletes a flat from a search
+      // you are relying on is not a tolerable failure.
+      if (S.passed.has(a.id)) { counts.passed++; if (!S.showPassed) continue; }
       const f = S.M.score(a);
       if (f.score == null) continue;
       // Three different reasons to step aside, counted separately because they
@@ -617,11 +651,13 @@
           }).join("")}</div>` : ""}
 
         <div class="actions">
-          <button class="btn" data-act="pass">✕ Pass</button>
+          ${S.passed.has(a.id)
+            ? `<button class="btn on" data-unpass="${esc(a.id)}">↩ Put it back</button>`
+            : `<button class="btn" data-act="pass">✕ Pass</button>`}
           <button class="btn ${S.saved.has(a.id) ? "on" : ""}" data-act="save">
             ${S.saved.has(a.id) ? "♥ Saved" : "♡ Save"}</button>
           <a class="btn primary" href="${esc((a.src && a.src[0] || {}).u || "#")}"
-             target="_blank" rel="noopener">View listing →</a>
+             target="_blank" rel="noopener" data-opened="${esc(a.id)}">View listing →</a>
         </div>
       </div>
 
@@ -676,6 +712,7 @@
     return `<div class="hero" id="hero">
       ${ph.length
         ? `${url ? `<a class="hero-link" href="${esc(url)}" target="_blank" rel="noopener"
+               data-opened="${esc(a.id)}"
                title="Open this listing on ${esc((a.src[0] || {}).n || "the source")}">` : ""}
            <img src="${esc(ph[i])}" alt="Photo ${i + 1} of ${ph.length}"
              fetchpriority="high" decoding="async" onerror="CASITA.retryImg(this)">
@@ -852,13 +889,17 @@
       <div class="film-rail" id="film-rail">${S.list.map((it, i) => {
         const t = tag(it.a);
         const src = (it.a.src && it.a.src[0] || {}).n;
-        return `<button class="film-card ${i === S.i ? "on" : ""}" data-pick="${i}">
+        const seen = S.opened.has(it.a.id);
+        return `<button class="film-card ${i === S.i ? "on" : ""}${seen ? " seen" : ""}${
+            S.passed.has(it.a.id) ? " passed" : ""}" data-pick="${i}"${
+            seen ? ` title="You opened this listing"` : ""}>
           <span class="film-score" style="color:${tone(it.f.score)}">${it.f.score}</span>
           <span class="film-photo">${it.a.photo
             ? `<img src="${esc(it.a.photo)}" alt="" loading="lazy" decoding="async"
                  fetchpriority="low" onerror="CASITA.retryImg(this)">`
             : `<em class="film-nophoto">no photo</em>`}
-            ${t ? `<em class="film-tag ${t.c}">${t.t}</em>` : ""}</span>
+            ${t ? `<em class="film-tag ${t.c}">${t.t}</em>` : ""}
+            ${seen ? `<em class="film-seen" aria-label="Opened">↗</em>` : ""}</span>
           <span class="film-name">${esc(shortLabel(it.a))}</span>
           <span class="film-src ${SRC_CLASS[src] || "other"}">${esc(SRC_SHORT[src] || src || "-")}</span>
         </button>`;
@@ -874,6 +915,8 @@
              ? ` · ${num(counts.gone)} no longer listed` : ""}.
            ${counts.plans ? `<button class="linkish" data-plans="1">${num(counts.plans)}
              floor plans set aside</button> -` : ""}
+           ${counts.passed ? `<button class="linkish" data-showpassed="1">${num(counts.passed)}
+             passed${S.showPassed ? " - hide them again" : ", show them"}</button> -` : ""}
            ${counts.missed ? `<button class="linkish" onclick="CASITA.editPriorities()">${
              num(counts.missed)} ruled out by your budget and bedrooms</button> -` : ""}`}
         scraped ${ago(scrapedAt())}. Use ← → to move.</p>`;
@@ -1959,7 +2002,7 @@
     const t = e.target.closest("[data-tab],[data-pick],[data-step],[data-act],[data-scroll]," +
       "[data-street],[data-open],[data-zoom],[data-recenter],[data-theme-set],[data-photo]," +
       "[data-walk],[data-hood],[data-district],[data-saved],[data-hoodtoggle],[data-sort]," +
-      "[data-plans]," +
+      "[data-plans],[data-opened],[data-unpass],[data-showpassed]," +
       "#ownerbtn,#recheck,#deepbtn");
     if (!t) return;
     if (t.dataset.tab) return setTab(t.dataset.tab);
@@ -2027,6 +2070,29 @@
       applyHood();
       return;
     }
+    /* Both of these are real <a> elements opening a new tab, so this records
+       and then gets out of the way - no preventDefault, no return, the browser
+       still follows the link. Redrawing here would rebuild the card under the
+       cursor mid-click, so only the strip is refreshed. */
+    if (t.dataset.opened) {
+      if (!S.opened.has(t.dataset.opened)) {
+        S.opened.add(t.dataset.opened);
+        saveSet(OPENED_KEY, S.opened);
+        drawFilm();
+      }
+      return;
+    }
+    if (t.dataset.unpass) {
+      S.passed.delete(t.dataset.unpass);
+      saveSet(PASSED_KEY, S.passed);
+      applyHood();
+      return;
+    }
+    if (t.dataset.showpassed !== undefined) {
+      S.showPassed = !S.showPassed;
+      applyHood();
+      return;
+    }
     if (t.dataset.plans !== undefined) {
       S.onlyPlans = !S.onlyPlans;
       if (S.onlyPlans) S.onlySaved = false;
@@ -2035,6 +2101,7 @@
     }
     if (t.dataset.act === "pass") {
       S.passed.add(cur().a.id);
+      saveSet(PASSED_KEY, S.passed);
       const at = S.i;
       S.list = rank(A);
       select(Math.min(at, S.list.length - 1));
@@ -2087,6 +2154,8 @@
   function boot() {
     initTheme();
     S.saved = loadSaved();
+    S.opened = loadSet(OPENED_KEY);
+    S.passed = loadSet(PASSED_KEY);
     MK.attach($("map"), frame);
     /* Listing photos come from the same congested burst the tiles do, and a
        broken <img> stays broken with no way back. Two retries with backoff,

@@ -426,6 +426,16 @@ a{color:inherit}
   text-align:center;transition:border-color .18s,box-shadow .18s}
 .film-card:hover{border-color:var(--ink-3)}
 .film-card.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-bg)}
+/* Opened already. Dimmed rather than moved or hidden - the ranking still says
+   what it said, you have just been there. Hovering and selecting restore it to
+   full strength, so a dimmed card is never harder to read than a fresh one. */
+.film-card.seen{opacity:.5}
+.film-card.seen:hover,.film-card.seen.on{opacity:1}
+.film-seen{position:absolute;top:4px;right:4px;font-size:9px;font-weight:700;
+  line-height:1;padding:3px 4px;border-radius:5px;background:rgba(17,17,17,.6);color:#fff}
+/* Only visible while "show passed" is on, so it needs to read as set aside. */
+.film-card.passed{opacity:.42;border-style:dashed}
+.film-card.passed:hover,.film-card.passed.on{opacity:1}
 .film-score{font-size:14px;font-weight:720;letter-spacing:-.02em}
 .film-photo{position:relative;display:block;height:62px;border-radius:7px;overflow:hidden;
   background:var(--sub)}
