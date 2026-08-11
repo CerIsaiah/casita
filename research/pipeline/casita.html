@@ -447,6 +447,23 @@ a{color:inherit}
 
 /* ---------- what the left column is ---------- */
 .leadin{padding-top:4px}
+.leadin-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:3px}
+/* Two questions, two answers, one control. Fit and value disagree often enough
+   that collapsing them into one ranking hides whichever the reader wanted. */
+.sortpick{margin-left:auto;display:flex;gap:1px;background:var(--line);
+  border:1px solid var(--line);border-radius:99px;padding:1px;flex:none}
+.sortpick button{border:0;background:var(--card);color:var(--ink-3);cursor:pointer;
+  font:inherit;font-size:11.5px;padding:4px 11px;border-radius:99px}
+.sortpick button.on{background:var(--ink);color:var(--card);font-weight:640}
+.sortpick button:hover{color:var(--ink)}
+.sortpick button.on:hover{color:var(--card)}
+/* Only shown when the discount survived the checks, so it reads as a finding
+   rather than as the advert's own claim about itself. */
+.valuetag{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-top:14px;
+  border:1px solid #D6EADF;background:var(--good-bg);border-radius:var(--r-sm);
+  padding:9px 12px}
+.valuetag b{font-size:13px;font-weight:660;color:var(--good)}
+.valuetag span{font-size:11.5px;color:var(--ink-3)}
 .leadin h2{font-size:15px;font-weight:660;letter-spacing:-.01em;margin:0 0 3px}
 .leadin p{font-size:12.5px;line-height:1.5;color:var(--ink-3);margin:0;max-width:56ch}
 

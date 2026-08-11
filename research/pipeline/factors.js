@@ -216,11 +216,25 @@ const FACTORS = (() => {
         return curve(act / (P.comfort || 3000),
           [[0.6, 100], [0.85, 88], [1, 70], [1.1, 45], [1.25, 8], [1.5, 0]]);
       },
-      conf: (a) => a.est === "verified" ? 0.95 : 0.6,
+      /* A price with no size attached is not a price.
+         $1,850 in Pacific Heights is a steal for a one-bed and unremarkable
+         for a room in a share, and this factor cannot tell the difference when
+         both the bedroom count and the floor area are missing. It was scoring
+         those the same as a known cheap flat, which put a listing nobody could
+         identify at the top of the whole ranking: 15% of the top twenty had no
+         bedroom count against 7% in the middle of the field.
+         Confidence, not a penalty. The listing is not worse for being vague;
+         we simply have no business claiming it is cheap. */
+      conf: (a) => {
+        const sized = a.beds != null || a.sqft || a.sqft_said;
+        if (!sized) return 0.12;
+        return a.est === "verified" ? 0.95 : 0.6;
+      },
       // Being cheaper than most of a pricey field is not the same as being
       // affordable. Without this guard a listing $235 over the renter's own
       // comfortable number was headlined as a reason to like it.
-      strong: (a, P) => (a.act ? a.act[0] : a.rent) <= (P.comfort || Infinity),
+      strong: (a, P) => (a.act ? a.act[0] : a.rent) <= (P.comfort || Infinity)
+                        && (a.beds != null || a.sqft || a.sqft_said),
       why(a, P) {
         const act = a.act ? a.act[0] : a.rent;
         return `~${money((P.comfort || 0) - act)} under your target`;

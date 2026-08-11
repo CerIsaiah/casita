@@ -40,6 +40,7 @@
     saved: new Set(),
     passed: new Set(),
     onlySaved: false, // showing the shortlist, or only the ones you kept
+    sort: "fit",      // "fit" = matches what you asked for; "value" = underpriced
     hoodOpen: false,  // the area picker is folded away until asked for
   };
 
@@ -145,7 +146,7 @@
   }
 
   const SHOW = 60;
-  const blank = () => ({ missed: 0, rooms: 0, gone: 0, eligible: 0,
+  const blank = () => ({ missed: 0, rooms: 0, gone: 0, eligible: 0, underpriced: 0,
                          by: {}, overBudget: [] });
   let counts = blank();
 
@@ -194,7 +195,16 @@
       const prev = best.get(k);
       if (!prev || f.score > prev.f.score) best.set(k, { a, f });
     }
-    const out = [...best.values()].sort((x, y) => y.f.score - x.f.score);
+    const out = [...best.values()];
+    counts.underpriced = out.filter((x) => dealValue(x.a)).length;
+    if (S.sort === "value") {
+      // Fit still breaks ties, so two equally underpriced flats are ordered by
+      // which one you would actually want.
+      out.sort((x, y) => ((dealValue(y.a) || {}).pct || 0) - ((dealValue(x.a) || {}).pct || 0)
+                         || y.f.score - x.f.score);
+    } else {
+      out.sort((x, y) => y.f.score - x.f.score);
+    }
     counts.eligible = out.length;
     return out.slice(0, SHOW);
   }
@@ -271,10 +281,24 @@
            filter is ignored here so a place cannot disappear because you changed districts.</p>
       </div>`;
     }
+    // Counted across the whole eligible field, not the list on screen. Sorting
+    // by value already selects for it, so "60 of 60 are underpriced" would be
+    // true and useless - the number worth knowing is how rare that is.
+    const nv = counts.underpriced;
     return `<div class="leadin">
-      <h2>Your shortlist</h2>
-      <p>${n} place${n === 1 ? "" : "s"} in ${esc(where)} that clear your must-haves,
-         ordered by how well each fits what you said matters.</p>
+      <div class="leadin-head">
+        <h2>Your shortlist</h2>
+        <div class="sortpick">
+          <button class="${S.sort === "fit" ? "on" : ""}" data-sort="fit">Best match</button>
+          <button class="${S.sort === "value" ? "on" : ""}" data-sort="value">Best value</button>
+        </div>
+      </div>
+      <p>${S.sort === "value"
+        ? `Ordered by how far under comparable units each one is, discounted by
+           anything the checks could not explain. ${num(nv)} of ${num(counts.eligible)}
+           places that clear your must-haves are priced under their block.`
+        : `${n} place${n === 1 ? "" : "s"} in ${esc(where)} that clear your must-haves,
+           ordered by how well each fits what you said matters.`}</p>
       ${gateHTML()}
     </div>`;
   }
@@ -350,6 +374,41 @@
   /* ============================================================
      THE DECISION CANVAS
      ============================================================ */
+  /* ---------- value, which is not the same thing as fit ----------
+     The fit score answers "is this the kind of place I asked for", and the
+     places that answer it best are mostly expensive: a quiet block with a
+     responsive manager near everything costs money. Ranked by fit, the median
+     rent of the top twenty is $3,095 and the bottom hundred is $1,600 - the
+     cheap end of the market sits at the bottom, and only one in twenty of the
+     top scorers is even flagged as underpriced.
+
+     That is the ranking behaving correctly and answering a different question
+     than "is this a steal". So value gets its own number rather than being
+     smuggled into the first one.
+
+     A discount only counts as value when it is explicable. Twenty-five percent
+     under comparable units with three independent confirmations is a find;
+     forty percent under with two unresolved concerns is the shape of a listing
+     that is cheap for a reason nobody has told you. So the discount is scaled
+     by what the auditor found, and a listing whose size we do not know scores
+     nothing at all - a price with no size attached is not a price.
+
+     Named dealValue, not valueOf: `valueOf` is a method on every object in the
+     language, and a bare call to it resolves to the built-in anywhere the
+     local binding is not in scope. */
+  function dealValue(a) {
+    const d = DEAL.audit(a);
+    if (d.discount == null || d.discount <= 0.05) return null;
+    if (a.beds == null && !a.sqft && !a.sqft_said) return null;
+    if (d.verdict === "suspect") return null;      // cheap for a reason
+    const trust = cl(1 - (d.high * 0.35 + (d.weight - d.high * 2) * 0.12), 0, 1);
+    const corrob = cl(0.55 + d.corroborates.length * 0.12, 0, 1);
+    const pct = Math.round(d.discount * 100 * trust * corrob);
+    if (pct < 8) return null;
+    return { pct, under: Math.round(d.discount * 100), basis: d.expected && d.expected.basis,
+             verdict: d.verdict };
+  }
+
   /* What the advert says about the shape of the place.
 
      Amenity pills answer "is there a dishwasher". They cannot answer the
@@ -469,6 +528,15 @@
         ${hi.length ? `<p class="lab">Why you'd like it</p>
           <div class="reasons">${hi.map((h) =>
             `<div class="reason">${ICON.svg(h.icon, 16)}<span>${esc(h.text)}</span></div>`).join("")}</div>` : ""}
+
+        ${(() => {
+          const v = dealValue(a);
+          return v ? `<div class="valuetag">
+            <b>${v.under}% under ${esc(v.basis || "comparable units")}</b>
+            <span>${v.verdict === "bargain"
+              ? "nothing unexplained in the checks"
+              : "worth confirming in person"}</span></div>` : "";
+        })()}
 
         ${qualitiesHTML(a)}
 
@@ -1764,7 +1832,7 @@
   document.addEventListener("click", (e) => {
     const t = e.target.closest("[data-tab],[data-pick],[data-step],[data-act],[data-scroll]," +
       "[data-street],[data-open],[data-zoom],[data-recenter],[data-theme-set],[data-photo]," +
-      "[data-walk],[data-hood],[data-district],[data-saved],[data-hoodtoggle]," +
+      "[data-walk],[data-hood],[data-district],[data-saved],[data-hoodtoggle],[data-sort]," +
       "#ownerbtn,#recheck,#deepbtn");
     if (!t) return;
     if (t.dataset.tab) return setTab(t.dataset.tab);
@@ -1814,6 +1882,11 @@
       if (S.onlySaved && !S.saved.size) { S.onlySaved = false; applyHood(); return; }
       if (S.onlySaved) { applyHood(); return; }
       drawDecision(); drawFilm(); drawHood();
+      return;
+    }
+    if (t.dataset.sort) {
+      S.sort = t.dataset.sort;
+      applyHood();
       return;
     }
     if (t.dataset.hoodtoggle !== undefined) {
