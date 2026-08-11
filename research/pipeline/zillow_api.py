@@ -55,6 +55,42 @@ def fetch(page=1, lo=None, hi=None):
             time.sleep(3 * (a + 1))
 
 
+def gallery(r):
+    """Every photo the search feed carries, not just the cover.
+
+    `carouselPhotosComposable` holds a `baseUrl` template and a list of photo
+    keys -- twenty-three of them for 140 S Van Ness #743, the same count the
+    listing page shows. We were storing `imgSrc` alone, so all 1,180 Zillow
+    rows looked like one-photograph adverts, the verification factor docked
+    them for it and the fraud auditor called it a concern.
+
+    The gallery was never behind the bot wall. It was in the response we
+    already had, one key over from the one we were reading.
+    """
+    c = r.get("carouselPhotosComposable") or {}
+    base, data = c.get("baseUrl"), c.get("photoData") or []
+    if base and data:
+        urls = [base.replace("{photoKey}", d["photoKey"])
+                for d in data if isinstance(d, dict) and d.get("photoKey")]
+        if urls:
+            return urls
+    return [r["imgSrc"]] if r.get("imgSrc") else []
+
+
+def baths_of(r, hd):
+    """Halves included.
+
+    `baths` in the feed rounds 1.5 up to 2, which is a bathroom this flat does
+    not have. `factsAndFeatures` counts full and half separately, so prefer it
+    and fall back to the rounded figure only when it is absent.
+    """
+    ff = r.get("factsAndFeatures") or {}
+    full, half = ff.get("fullBathroomCount"), ff.get("halfBathroomCount")
+    if isinstance(full, (int, float)):
+        return full + 0.5 * (half or 0)
+    return r.get("baths") or hd.get("bathrooms")
+
+
 def norm(r):
     hd = r.get("hdpData", {}).get("homeInfo", {}) if isinstance(r.get("hdpData"), dict) else {}
     price = r.get("unformattedPrice")
@@ -63,14 +99,25 @@ def norm(r):
         price = int(m.group(0).replace(",", "")) if m else None
     url = r.get("detailUrl") or ""
     if url.startswith("/"): url = "https://www.zillow.com" + url
+    photos = gallery(r)
     return {"zpid": r.get("zpid"), "address": r.get("address"),
             "unformattedPrice": price,
             "latitude": r.get("latLong", {}).get("latitude") or hd.get("latitude"),
             "longitude": r.get("latLong", {}).get("longitude") or hd.get("longitude"),
             "beds": r.get("beds") or hd.get("bedrooms"),
-            "baths": r.get("baths") or hd.get("bathrooms"),
+            "baths": baths_of(r, hd),
             "area": r.get("area") or hd.get("livingArea"),
-            "imgSrc": r.get("imgSrc"), "detailUrl": url,
+            "imgSrc": photos[0] if photos else r.get("imgSrc"),
+            "photos": photos,
+            # When the flat is actually free, and how long it has been sitting.
+            # Both were in the feed and neither was read, which is why Zillow
+            # listings carried no posting date at all.
+            "availabilityDate": r.get("availabilityDate"),
+            "daysOnZillow": hd.get("daysOnZillow"),
+            # Zillow's own estimate of the market rent. An asking price far
+            # under it is the kind of thing the deal auditor exists to notice.
+            "rentZestimate": hd.get("rentZestimate"),
+            "detailUrl": url,
             "statusType": r.get("statusType")}
 
 

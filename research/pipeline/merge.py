@@ -167,11 +167,19 @@ def from_zillow(it):
       "name": None, "addr": addr, "hood": None,
       "lat": it.get("latitude") or (it.get("latLong") or {}).get("latitude"),
       "lon": it.get("longitude") or (it.get("latLong") or {}).get("longitude"),
-      "photos": [it.get("imgSrc")] if it.get("imgSrc") else [],
+      # The feed carries the whole carousel; zillow_api.gallery() unpacks it.
+      # Falling back to imgSrc keeps older harvests readable.
+      "photos": (it.get("photos") or ([it["imgSrc"]] if it.get("imgSrc") else []))[:8],
       "rating": None, "fees": None, "unit": norm_unit(addr),
       "rent": money(it.get("unformattedPrice") or it.get("price")), "total": None,
       "beds": beds_of(it.get("beds")), "baths": it.get("baths"),
-      "sqft": it.get("area"), "avail": None,
+      "sqft": it.get("area"),
+      # Zillow publishes when the flat is free, which is not the same as when
+      # the advert went up -- so it fills `avail`, not `posted`.
+      "avail": it.get("availabilityDate"),
+      # daysOnZillow is the closest thing the feed has to a posting date.
+      "posted": (int(time.time()) - int(it["daysOnZillow"]) * 86400)
+                if isinstance(it.get("daysOnZillow"), (int, float)) else None,
     }]
 
 

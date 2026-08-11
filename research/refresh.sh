@@ -39,6 +39,7 @@ python3 craigslist_pets.py     # pets_dog / pets_cat filter sweep (free, ~2 min)
 python3 merge_pets.py          # attach those flags alongside the fee data
 python3 add_availability.py    # is it still rentable — reuses the sweep above
 python3 locate.py              # recover addresses Craigslist hid, from the listing text
+python3 add_qualities.py       # view, two levels, top floor, on-site manager, from the prose
 
 # One builder, not two. This step used to inline its own copy of the page
 # assembly, which predated build_pages.py and had drifted: it knew nothing about

@@ -350,6 +350,41 @@
   /* ============================================================
      THE DECISION CANVAS
      ============================================================ */
+  /* What the advert says about the shape of the place.
+
+     Amenity pills answer "is there a dishwasher". They cannot answer the
+     questions that actually decide between two flats at the same price: is it
+     two floors, is there a view, is it on the ground floor facing the street,
+     does the manager live on the landing. None of that is a field on any
+     source - it is written in prose or nowhere, and add_qualities.py reads it
+     out with the sentence it came from attached.
+
+     Each one carries its quote, because an extractor working on marketing copy
+     will sometimes be wrong and the reader should be able to see that for
+     themselves rather than take the label on trust. Nothing here moves the
+     score; these are facts to read, not points to award. */
+  function qualitiesHTML(a) {
+    const qs = a.qualities || [];
+    if (!qs.length) {
+      // Silence here means we could not read the advert, not that the flat is
+      // plain. Saying which is the difference between a gap and a verdict.
+      return a.text_read === false
+        ? `<p class="lab">What it's like inside</p>
+           <p class="fine">${esc((a.src && a.src[0] || {}).n || "This source")} publishes no
+             description for this listing, so there is nothing to read here. Open the
+             listing to see what the advert actually says.</p>`
+        : "";
+    }
+    return `<p class="lab">What it's like inside</p>
+      <div class="quals">${qs.map((q) => `
+        <details class="qual q-${q.pol > 0 ? "up" : q.pol < 0 ? "down" : "flat"}">
+          <summary>${esc(q.label)}</summary>
+          <p>"${esc(q.quote)}"</p>
+        </details>`).join("")}</div>
+      ${a.sqft_said && !a.sqft ? `<p class="fine">The advert says ${num(a.sqft_said)} sq ft;
+        the listing has no square-footage field, so this is the text's word for it.</p>` : ""}`;
+  }
+
   /* Which panel can actually show this problem.
 
      A warning that says "street conditions here are in the bottom third" is
@@ -434,6 +469,8 @@
         ${hi.length ? `<p class="lab">Why you'd like it</p>
           <div class="reasons">${hi.map((h) =>
             `<div class="reason">${ICON.svg(h.icon, 16)}<span>${esc(h.text)}</span></div>`).join("")}</div>` : ""}
+
+        ${qualitiesHTML(a)}
 
         ${bad.length ? `<p class="lab">Good to know</p>
           <div class="warns">${bad.map((w) => {

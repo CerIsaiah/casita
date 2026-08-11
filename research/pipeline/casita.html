@@ -316,6 +316,27 @@ a{color:inherit}
   border-radius:var(--r-sm);padding:11px 12px;font-size:13px;line-height:1.4;
   background:var(--card)}
 .reason .ic{font-size:15px;line-height:1.2;flex:none}
+/* Qualities read out of the advert's own prose. Closed by default: the label
+   is the claim, the quote is the evidence, and evidence is for when you doubt
+   the claim rather than something to wade through first. */
+.quals{display:flex;gap:6px;flex-wrap:wrap}
+.qual{border:1px solid var(--line);border-radius:99px;background:var(--card);
+  font-size:12px;max-width:100%}
+.qual summary{cursor:pointer;list-style:none;padding:5px 12px;white-space:nowrap;
+  color:var(--ink-2);display:flex;align-items:center;gap:6px}
+.qual summary::-webkit-details-marker{display:none}
+.qual summary::before{content:"";width:6px;height:6px;border-radius:50%;flex:none;
+  background:var(--ink-3)}
+.qual.q-up summary::before{background:var(--good)}
+.qual.q-down summary::before{background:var(--warm)}
+.qual.q-up summary{color:var(--good)}
+.qual.q-down summary{color:#8A6320}
+.qual[open]{border-radius:var(--r-sm);flex:1 1 100%;max-width:none}
+.qual[open] summary{white-space:normal}
+.qual p{margin:0;padding:0 12px 10px;font-size:12px;line-height:1.5;
+  color:var(--ink-3);font-style:italic}
+.qual summary:hover{color:var(--ink)}
+
 .warns{display:flex;gap:8px;flex-wrap:wrap}
 .warn{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--warm-bg);
   background:var(--warm-bg);color:#7A5312;border-radius:var(--r-sm);padding:10px 13px;
