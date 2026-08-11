@@ -6,6 +6,44 @@ MONEY = re.compile(r"[\d,]+")
 # "514 17th Ave, APT 2" is a doorstep; "mission district" is a shrug.
 STREETISH = re.compile(r"^\s*\d+[a-z]?\s+\S")
 
+# A unit designator, so two flats in one building are not read as two buildings.
+UNIT_SUFFIX = re.compile(
+    r"\s*(?:,\s*)?(?:#|\bunit\b|\bapt\b|\bapartment\b|\bste\b|\bsuite\b)\s*[\w-]*\.?\s*$",
+    re.I,
+)
+
+
+def building_of(addr):
+    """The street address with any unit designator removed.
+
+    `mark_fuzzy` asks whether one coordinate serves more than one *building*.
+    It was asking whether one coordinate served more than one address string,
+    which stops being the same question the moment a source publishes unit
+    numbers. Zillow does:
+
+        140 S Van Ness Ave Unit 429
+        140 S Van Ness Ave Unit 743
+        140 S Van Ness Ave Unit 1024
+
+    Three strings, one doorstep. They were read as a crowded pin and all three
+    flagged unplaceable, which cost them the parcel match, the "matches a real
+    building" tick, and a large slice of their verification score. The same
+    building arrives from Apartments.com as plain "140 S Van Ness Ave" and
+    matches cleanly -- so one source was being penalised for publishing more
+    detail than the other.
+    """
+    a = (addr or "").strip().lower()
+    # The street portion only. Sources append the city, state and postcode
+    # after the unit -- "140 S Van Ness Ave Unit 743, San Francisco, CA 94103"
+    # -- so a suffix pattern anchored to the end of the string matches the
+    # postcode and leaves the unit exactly where it was.
+    a = a.split(",")[0].strip()
+    prev = None
+    while a != prev:                       # "…Ave Unit 4B #2" -> "…Ave"
+        prev = a
+        a = UNIT_SUFFIX.sub("", a).strip().rstrip(",").strip()
+    return a
+
 
 def money(v):
     if v is None: return None
@@ -173,7 +211,7 @@ def mark_fuzzy(rows):
         at[(round(r["lat"], 5), round(r["lon"], 5))].append(r)
 
     for group in at.values():
-        distinct = {(r.get("addr") or "").strip().lower()
+        distinct = {building_of(r.get("addr"))
                     for r in group if STREETISH.match(r.get("addr") or "")}
         crowded = len(distinct) > 1
         for r in group:

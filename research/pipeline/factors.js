@@ -393,7 +393,14 @@ const FACTORS = (() => {
       raw(a) {
         let v = 70;                                  // an ordinary listing
         const photos = (a.photos || []).length;
-        if (!photos) v -= 40;                        // the loudest signal here
+        // `photos_partial` means we know our own count is short -- Zillow's
+        // search feed hands over one preview image and the gallery sits behind
+        // a bot wall. Scoring that as a thin advert punished every Zillow
+        // listing for a gap in the scraper, and dragged the source's average
+        // verification percentile to 39 against Apartments.com's 72. Absence
+        // of evidence we never went looking for is not evidence.
+        if (a.photos_partial) { /* no photo signal either way */ }
+        else if (!photos) v -= 40;                   // the loudest signal here
         else if (photos === 1) v -= 9;
         else v += 9;
         if (a.photo_reuse) v -= 22;                  // same pictures, other address
@@ -1014,6 +1021,20 @@ const FACTORS = (() => {
         .map((f) => ({ text: f.def.but(fit.a, P, { pct: f.pct }),
                        kind: "weak", key: f.key, pct: f.pct }));
 
+      /* A priority we could not measure at all.
+         Two thirds of buildings carry no reviews, so someone who says resident
+         satisfaction matters gets a silent nothing on most of the field: the
+         factor is dropped from the mean, which is the right arithmetic - a
+         missing rating is not a bad one - but it also vanishes from the card,
+         so the listing reads as though it satisfied a priority it was never
+         judged on. Saying so is the balance: it does not move the score, it
+         just stops the silence from looking like a pass. */
+      const unmeasured = picked.map((k) => fit.F[k])
+        .filter((f) => f && f.adj == null && REG[f.key])
+        .map((f) => ({ text: `No data on ${REG[f.key].label.toLowerCase()} here, `
+                             + `so it could not be judged on something you said matters`,
+                       kind: "nodata", key: f.key }));
+
       const hard = fit.anomalies.filter((x) => !x.soft)
         .map((x) => ({ text: x.text, kind: "anomaly", src: x.src, key: x.key }));
       const soft = fit.anomalies.filter((x) => x.soft)
@@ -1024,6 +1045,9 @@ const FACTORS = (() => {
         ...hard,
         ...weak,
         ...fit.unknowns.map((r) => ({ text: r.text, kind: "unknown" })),
+        // After the measured weaknesses: a gap in what we know is worth saying
+        // but never louder than something we actually found.
+        ...unmeasured,
         ...soft,
       ].slice(0, max || 2);
     }

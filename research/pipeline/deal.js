@@ -257,12 +257,19 @@ const DEAL = (() => {
         src: "auto-generated unit reference" });
 
     /* --- is there an apartment behind the advert at all --- */
-    if (!(a.photos || []).length)
-      concerns.push({ id: "no_photos", sev: "high",
-        text: "No photographs at all", src: (a.src && a.src[0] || {}).n || "listing" });
-    else if (a.photos.length === 1)
-      concerns.push({ id: "one_photo", sev: "info",
-        text: "Only one photograph", src: (a.src && a.src[0] || {}).n || "listing" });
+    /* Photo checks only run where the count is the advert's, not ours.
+       Zillow's search feed returns a single preview image and the gallery is
+       behind a bot wall, so "Only one photograph" fired on every Zillow
+       listing in the set -- a concern that is always true is not a concern,
+       and this one was being raised against adverts that publish twenty. */
+    if (!a.photos_partial) {
+      if (!(a.photos || []).length)
+        concerns.push({ id: "no_photos", sev: "high",
+          text: "No photographs at all", src: (a.src && a.src[0] || {}).n || "listing" });
+      else if (a.photos.length === 1)
+        concerns.push({ id: "one_photo", sev: "info",
+          text: "Only one photograph", src: (a.src && a.src[0] || {}).n || "listing" });
+    }
     if (a.photo_reuse)
       concerns.push({ id: "photo_reuse", sev: "high",
         text: "Some of these photographs also appear on a different address",

@@ -64,6 +64,22 @@ for a in apts:
       "rating": a.get("rating"),
       "photo": (a.get("photos") or [None])[0],
       "photos": (a.get("photos") or [])[:5],
+      # True when the photo count is a limit of our scraping, not of the advert.
+      #
+      # Zillow's search feed returns exactly one preview image per row, and the
+      # gallery lives on the listing page, which is behind a bot wall for
+      # /homedetails/. So every one of our Zillow rows carries a single photo
+      # while the real advert may carry twenty -- 140 S Van Ness #743 publishes
+      # twenty-three.
+      #
+      # Without this flag the verification factor docked those listings for
+      # being thin and the fraud auditor raised "Only one photograph" on 100%
+      # of Zillow, which is a check that is always true, applied to a third of
+      # the inventory, for something the listing did not do. "The advert
+      # published one photo" and "we could only retrieve one photo" are
+      # different facts and only the first says anything about the listing.
+      "photos_partial": any(s["n"] == "Zillow" for s in a.get("sources", []))
+                        and len(a.get("photos") or []) <= 1,
       "src": [{"n": s["n"], "u": s.get("u"), "c": s.get("c", 1)} for s in a.get("sources", [])],
       # Epoch seconds, from the source that published one. Craigslist gives a
       # real posting time; Apartments.com gives prose we parse; Zillow's search

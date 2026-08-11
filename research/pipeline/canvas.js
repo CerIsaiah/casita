@@ -1410,7 +1410,13 @@
         <p class="lab">The flat, or the building?</p>
         <div class="rows">
           <div class="row"><span>Photographs published</span>
-            <b>${(a.photos || []).length || "none"}</b></div>
+            ${a.photos_partial
+              /* Printing "1" would be false about the advert and true only
+                 about us: Zillow's feed hands over a single preview and the
+                 gallery sits behind a bot wall. The honest answer is that we
+                 did not count them. */
+              ? `<b class="dim">not counted - open the listing</b>`
+              : `<b>${(a.photos || []).length || "none"}</b>`}</div>
           <div class="row"><span>Amenities listed for this unit</span>
             <b>${(a.unit_amen || []).length
               ? esc(a.unit_amen.join(", ")) : "none - building-level listing"}</b></div>
