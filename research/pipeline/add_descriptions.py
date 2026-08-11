@@ -27,15 +27,11 @@ looked like proof the door was locked, when all three had been knocking wrong.
 Every answer is cached to disk, so a rerun after a partial sweep costs nothing
 for what it already has.
 
-    python3 add_descriptions.py              both sources
-    python3 add_descriptions.py --craigslist only Craigslist
-    python3 add_descriptions.py --zillow     only Zillow listing pages
-    python3 add_descriptions.py --limit 50   cap the work, for testing
+    python3 add_descriptions.py            sweep Craigslist postings
+    python3 add_descriptions.py --limit 50 cap the work, for testing
 """
 import gzip
-import http.cookiejar
 import json
-import math
 import pathlib
 import random
 import re
@@ -85,10 +81,6 @@ HEADERS = {
 CL_BODY = re.compile(r'id="postingbody"[^>]*>(.*?)</section>', re.S)
 # Craigslist prefixes every body with this, and it is not part of the advert.
 CL_JUNK = re.compile(r"QR Code Link to This Post\s*", re.I)
-Z_DESC = re.compile(r'"description"\s*:\s*"((?:[^"\\]|\\.){60,})"')
-# Building pages carry it as JSON; single-home pages render it into an
-# <article> instead, so both shapes are tried.
-Z_ARTICLE = re.compile(r'"description"\s*>\s*<article[^>]*>(.*?)</article>', re.S)
 TAGS = re.compile(r"<[^>]+>")
 
 # Sentinel: refused, as distinct from absent.
@@ -102,60 +94,23 @@ def clean(html_fragment):
     return " ".join(t.split())
 
 
-# ---------------------------------------------------------------------------
-# A browsing session, rather than a thousand unrelated strangers.
+# Zillow is not fetched here. See add_zillow_apify.py.
 #
-# Every request so far was cookieless and refererless: a fresh anonymous client
-# asking for a deep listing page it could not have found, a thousand times in a
-# row. No person browses that way, and PerimeterX scores exactly that shape.
-# The header set got past the first check; the traffic pattern failed the
-# second one.
+# Three approaches were tried against /homedetails/ and all three are gone:
+# Playwright headless, Playwright headed with a stealth profile, and a plain
+# request carrying Chrome's client hints. The last of those worked exactly once
+# -- then a burst at 2.5/s earned a flag on that header signature, and it has
+# been refused since. The browser on the same machine kept working throughout,
+# which is what makes the diagnosis clear: the wall wants a session that has
+# executed their JavaScript, and no header set substitutes for one.
 #
-# So this keeps one session. It warms up on the search page the way a visitor
-# arrives, keeps the cookies that page sets, sends each request with the last
-# page as its referer, and paces itself like someone reading rather than like a
-# metronome -- mostly a second or two, occasionally stopping to actually look
-# at something.
-_jar = http.cookiejar.CookieJar()
-_opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(_jar))
-_session = {"referer": "https://www.zillow.com/san-francisco-ca/rentals/",
-            "warm": False, "since_pause": 0}
-_session_lock = threading.Lock()
-
-
-def warm_up():
-    """Arrive the way a visitor arrives, and keep what the front door hands you."""
-    with _session_lock:
-        if _session["warm"]:
-            return True
-        try:
-            h = dict(HEADERS)
-            h.pop("Referer", None)
-            h["Sec-Fetch-Site"] = "none"
-            _opener.open(urllib.request.Request(
-                "https://www.zillow.com/san-francisco-ca/rentals/", headers=h), timeout=30).read()
-            _session["warm"] = True
-            time.sleep(random.uniform(2.0, 4.0))     # read the results page
-            return True
-        except Exception:
-            return False
-
-
-def human_pause():
-    """A reading rhythm, not a clock.
-
-    Log-normal so most gaps are short and a few are long, with a proper break
-    every ten to twenty-five pages. A fixed interval is the easiest pattern in
-    the world to recognise, and the one thing a person never produces.
-    """
-    with _session_lock:
-        _session["since_pause"] += 1
-        due = _session["since_pause"] >= random.randint(10, 25)
-        if due:
-            _session["since_pause"] = 0
-    time.sleep(random.uniform(12, 30) if due
-               else min(9.0, math.exp(random.gauss(0.35, 0.55))))
-
+# A session-based fetcher with cookie reuse and human-shaped pacing was written
+# and deleted unrun. It is not obviously wrong, but it could not be tested
+# while the flag was up, and shipping an untested workaround next to a working
+# paid one is how a pipeline grows a path nobody trusts.
+#
+# Craigslist stays here because it needs none of this: one plain request per
+# posting, no wall, 736 pages in two minutes.
 
 def get(url, tries=2):
     for i in range(tries):
@@ -193,25 +148,6 @@ def craigslist_body(url):
         return None
     body = CL_JUNK.sub("", clean(m.group(1)))
     return body[:4000] or None
-
-
-def zillow_body(url):
-    h = get(url)
-    if h is WALLED:
-        return WALLED
-    if not h:
-        return None
-    art = Z_ARTICLE.search(h)
-    if art:
-        return clean(art.group(1))[:4000] or None
-    m = Z_DESC.search(h)
-    if not m:
-        return None
-    try:
-        body = json.loads('"' + m.group(1) + '"')
-    except json.JSONDecodeError:
-        body = m.group(1)
-    return " ".join(str(body).split())[:4000] or None
 
 
 class Pacer:
@@ -311,8 +247,6 @@ def sweep(targets, fetch, cache, label, rps=2.5, workers=6):
 
 
 def main():
-    only_cl = "--craigslist" in sys.argv
-    only_z = "--zillow" in sys.argv
     limit = int(sys.argv[sys.argv.index("--limit") + 1]) if "--limit" in sys.argv else None
 
     data = json.load(open(DATA))
@@ -330,16 +264,8 @@ def main():
                 seen.append(u)
         return seen[:limit] if limit else seen
 
-    if not only_z:
-        sweep(urls(lambda s, u: s.get("n") == "Craigslist"),
-              craigslist_body, cache, "craigslist postings", rps=4.0, workers=8)
-    if not only_cl:
-        # Zillow and Craigslist tolerate very different rates, and the difference is
-        # measured rather than assumed: Craigslist served 736 pages at 7.5/s with
-        # zero refusals, Zillow refused 35 of the first 100 at 2.5/s. Its limiter
-        # watches burst rate, so the workers are few and the clock is slow.
-        sweep(urls(lambda s, u: s.get("n") == "Zillow"),
-              zillow_body, cache, "zillow listing pages", rps=1.0, workers=3)
+    sweep(urls(lambda s, u: s.get("n") == "Craigslist"),
+          craigslist_body, cache, "craigslist postings", rps=4.0, workers=8)
 
     added = 0
     for a in data:

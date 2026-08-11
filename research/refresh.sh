@@ -38,8 +38,15 @@ python3 merge_units.py         # per-unit price, amenities, walk/sound scores, p
 python3 craigslist_pets.py     # pets_dog / pets_cat filter sweep (free, ~2 min)
 python3 merge_pets.py          # attach those flags alongside the fee data
 python3 add_availability.py    # is it still rentable — reuses the sweep above
+# Zillow has no free liveness field, so its availability is rebuilt separately:
+# presence in today's search feed, then the unit table on building pages. These
+# were run by hand after every refresh until now, which is why a fresh scrape
+# kept coming back with a thousand listings marked "unknown" - the pipeline
+# wiped the field and nothing put it back.
+python3 zillow_presence.py     # still in today's feed?  (free)
+python3 add_zillow_avail.py --plain   # unit tables on building pages (free)
 python3 locate.py              # recover addresses Craigslist hid, from the listing text
-python3 add_descriptions.py    # craigslist bodies (free); zillow needs the actor below
+python3 add_descriptions.py    # craigslist posting bodies (free)
 python3 add_zillow_apify.py    # zillow prose + floor area (~$3, the only paid description step)
 python3 add_qualities.py       # view, two levels, top floor, on-site manager, from the prose
 

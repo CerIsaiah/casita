@@ -23,10 +23,6 @@ So this is built around patience rather than cleverness.
   · A page that cannot be read after retries is recorded as unknown rather
     than guessed. The whole point of this file is to replace a guess.
 
-Falls back to the project's Playwright context (src/casita/browser.py, which
-keeps a persistent profile so a solved captcha sticks) only if plain requests
-stop working entirely.
-
 Zillow blocks by URL class, not by rate. Measured over a clean sample, with
 seconds of spacing between requests:
 
@@ -43,14 +39,12 @@ later.
 So the two classes are fetched two different ways:
 
   · Building pages go over plain HTTP, paced. Cheap, and it works.
-  · Single-home pages go through the project's Playwright context
-    (src/casita/browser.py), which keeps a persistent profile so a captcha
-    solved once sticks. Slower and heavier, and reserved for the half of the
-    inventory that genuinely needs it.
+  · Single-home pages are not fetched here at all. They are walled, and
+    their availability comes from zillow_presence.py instead: presence in
+    today's search feed, which is free and needs no page at all.
 
     python3 add_zillow_avail.py            both phases, every listing
     python3 add_zillow_avail.py --plain    building pages only (fast)
-    python3 add_zillow_avail.py --browser  single-home pages only
     python3 add_zillow_avail.py --limit 40 cap the work (for testing)
 """
 import json
@@ -237,54 +231,19 @@ def sweep_plain(todo, cache):
     save_cache(cache)
 
 
-def sweep_browser(todo, cache):
-    """Drive the shared Playwright profile at the pages plain HTTP cannot reach.
-
-    Imported lazily: the plain phase is the common case and must not require
-    Playwright to be installed to run.
-    """
-    import asyncio
-    sys.path.insert(0, str(HERE.parent.parent / "src"))
-    from casita.browser import context           # noqa: E402
-
-    async def go():
-        async with context(headless=False) as ctx:
-            page = await ctx.new_page()
-            for i, u in enumerate(todo, 1):
-                try:
-                    await page.goto(u, wait_until="domcontentloaded", timeout=45000)
-                    await page.wait_for_timeout(random.randint(1200, 2600))
-                    html = await page.content()
-                    state, units, note, labels = interpret(html)
-                except Exception as e:
-                    state, units, note, labels = ("unknown", None,
-                        f"browser: {type(e).__name__}", [])
-                # A wall here means the profile needs a human to clear the
-                # captcha once. Say so and stop rather than grinding through
-                # 490 pages recording the same non-answer.
-                if state == "blocked":
-                    print("\n  blocked in-browser. Open the window, clear the "
-                          "captcha, then rerun --browser to resume.", flush=True)
-                    save_cache(cache)
-                    return
-                cache[u] = {"state": state, "units": units, "note": note,
-                            "units_listed": labels, "via": "browser",
-                            "t": int(time.time())}
-                if i % 5 == 0 or i == len(todo):
-                    save_cache(cache)
-                    print(f"  browser {i}/{len(todo)}  {state:<8} {note[:48]}", flush=True)
-                await page.wait_for_timeout(random.randint(1500, 3500))
-            save_cache(cache)
-
-    asyncio.run(go())
-
+# There is no browser phase. Playwright was tried against /homedetails/ both
+# headless and headed with the project's stealth profile, and refused both
+# times; the pages want a session that has run their JavaScript, which a driven
+# browser on this machine did not supply either. The unit tables this file
+# needs live on /apartments/ pages, which plain HTTP reaches, and the prose
+# lives behind add_zillow_apify.py. Keeping a dead code path here only invites
+# someone to try the flag and conclude the data does not exist.
 
 def main():
     limit = None
     if "--limit" in sys.argv:
         limit = int(sys.argv[sys.argv.index("--limit") + 1])
     only_plain = "--plain" in sys.argv
-    only_browser = "--browser" in sys.argv
 
     data = json.load(open(DATA))
     cache = load_cache()
@@ -311,13 +270,8 @@ def main():
     print(f"  building pages over http: {len(plain):,}"
           f"   ·  single-home pages via browser: {len(browser):,}", flush=True)
 
-    if plain and not only_browser:
+    if plain:
         sweep_plain(plain, cache)
-    # The browser phase stays opt-in. Measured against homedetails, a headless
-    # browser and a headed one with the stealth profile were both refused, so
-    # this is not the answer for the walled half -- zillow_presence.py is.
-    if browser and only_browser:
-        sweep_browser(browser, cache)
 
     # Merge the two signals, strongest claim first.
     #
