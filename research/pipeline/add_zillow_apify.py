@@ -92,9 +92,19 @@ def main():
     print(f"  zillow listings needing prose: {len(todo):,}  "
           f"(cached {len(cache):,})")
     print(f"  estimated cost: ${len(todo) * PER_ITEM_USD:,.2f}")
-    if dry or not todo:
+    if dry:
         return
+    # Nothing to buy is not the same as nothing to do. export_app.py rebuilds
+    # app_data.json from the merge every run, so the prose has to be reattached
+    # from the cache each time -- and returning here when `todo` was empty meant
+    # a rerun that needed no new fetches silently dropped 940 descriptions that
+    # had already been paid for. Skip the actor, never the attach.
+    if todo:
+        run_actor(tok, todo, cache)
+    attach(data, cache)
 
+
+def run_actor(tok, todo, cache):
     run = api(f"acts/{ACTOR}/runs", tok,
               {"startUrls": [{"url": u} for u in todo]})["data"]
     rid, dsid = run["id"], run["defaultDatasetId"]
@@ -134,6 +144,8 @@ def main():
                     "sqft": r.get("livingArea")}
     atomicjson.dump(cache, str(CACHE))
 
+
+def attach(data, cache):
     added = sqft = 0
     for a in data:
         u = (a.get("src") or [{}])[0].get("u")

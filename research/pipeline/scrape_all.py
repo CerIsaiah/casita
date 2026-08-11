@@ -101,5 +101,20 @@ try:
 except Exception as e:
     print("craigslist API failed:", e, flush=True)
 
+# Zumper is the fourth source and the only one that is neither CoStar nor a
+# direct-from-renter board. Its listings come off landlord-side property
+# management systems -- AppFolio, Yardi, Entrata, ShowMojo, Intellirent -- which
+# is why roughly a third of them are addresses the other three never carried.
+# It publishes floor area on every row, where we manage 56%, and prose on about
+# three quarters, free, which is what the Zillow half of the pipeline pays for.
+# Plain HTTP, no browser, no key.
+try:
+    import zumper_api
+    zr = zumper_api.harvest()
+    out["zumper"] = [r for r in zr if r.get("lat") and r.get("min_price")]
+    print(f"zumper (free): {len(out['zumper']):,} items", flush=True)
+except Exception as e:
+    print("zumper failed:", e, flush=True)
+
 json.dump(out, open("listings_raw.json", "w"))
 print(f"\nTOTAL SPEND: ${total:.2f}", flush=True)

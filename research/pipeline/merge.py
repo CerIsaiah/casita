@@ -183,7 +183,54 @@ def from_zillow(it):
     }]
 
 
-ADAPT = {"apartments": from_apartments, "craigslist": from_craigslist, "zillow": from_zillow}
+def from_zumper(it):
+    """Zumper rows, which arrive better-formed than anything else here.
+
+    Every one publishes floor area, most publish prose, and the price is a
+    range across the building's live units rather than one number - `min_price`
+    is the cheapest thing actually available, which is the same thing the other
+    sources call the rent.
+
+    Two things are dropped rather than imported:
+
+    Short lets. A 30-day minimum is a furnished corporate stay, not somewhere
+    to live, and the operators doing it (Blueground and friends) quote the
+    cheapest possible night as a monthly rent - one of them advertises $2,860
+    in the price field and $9,735 in its own description. Importing that would
+    put a fake bargain at the top of a list whose whole job is to not do that.
+
+    Buildings with no street number. `STREETISH` elsewhere in this file already
+    treats those as a shrug rather than a doorstep.
+    """
+    if (it.get("min_lease_days") or 999) < 180:
+        return []
+    addr = (it.get("address") or "").strip()
+    photos = [f"https://img.zumpercdn.com/{i}/1280x960"
+              for i in (it.get("image_ids") or [])[:8]]
+    url = it.get("url") or ""
+    return [{
+      "source": "Zumper",
+      "url": ("https://www.zumper.com" + url) if url.startswith("/") else (url or None),
+      "name": it.get("building_name") or it.get("title"),
+      "addr": addr, "hood": it.get("neighborhood_name"),
+      "lat": it.get("lat"), "lon": it.get("lng"),
+      "photos": photos,
+      # `rating` here is Zumper's own building score, not a renter review count,
+      # so it stays out rather than being mixed in with Apartments.com's.
+      "rating": None, "fees": it.get("leasing_fee"), "unit": norm_unit(addr),
+      "rent": money(it.get("min_price")), "total": None,
+      "beds": beds_of(it.get("min_bedrooms")), "baths": it.get("min_bathrooms"),
+      "sqft": it.get("min_square_feet"),
+      "avail": it.get("date_available"),
+      # `listed_on` is when this advert went up; `created_on` is when Zumper
+      # first saw the building, which for a large operator can be years back.
+      "posted": it.get("listed_on") or None,
+      "desc": (it.get("short_description") or "").strip() or None,
+    }]
+
+
+ADAPT = {"apartments": from_apartments, "craigslist": from_craigslist,
+         "zillow": from_zillow, "zumper": from_zumper}
 
 
 def mark_fuzzy(rows):
