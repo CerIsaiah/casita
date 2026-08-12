@@ -45,6 +45,7 @@
     opened: new Set(),
     showPassed: false, // temporarily un-hide what you passed, to undo one
     onlySaved: false, // showing the shortlist, or only the ones you kept
+    onlyNew: false,   // only what has appeared since your last visit
     onlyPlans: false, // showing the buildings that publish layouts, not units
     sort: "fit",      // "fit" = matches what you asked for; "value" = underpriced
     hoodOpen: false,  // the area picker is folded away until asked for
@@ -130,6 +131,24 @@
   const MEM_KEY = "casita.seen.v1";
   const MEM = (() => { try { return JSON.parse(localStorage.getItem(MEM_KEY)) || {}; } catch { return {}; } })();
   const firstRun = !Object.keys(MEM).length;
+  /* What the data set held when you arrived, frozen before this visit writes
+     to it.
+
+     "New to you" was reading MEM directly and could therefore never fire.
+     rememberAll() runs inside rebuild(), before a single card is drawn, so by
+     the time anything asked "have I seen this?" the answer was yes for every
+     listing in the file - including the several hundred that had appeared
+     since the last visit. The label existed, the memory was correct, and the
+     question was being asked one step too late.
+
+     This is also the honest definition of new. It does not mean recently
+     posted, and it does not mean unclicked: it means this listing was not in
+     the data the last time you opened Casita. Somebody who has worked through
+     the whole list wants exactly that, and wants it whether or not they
+     remembered to click each one. */
+  const KNOWN = new Set(Object.keys(MEM));
+  const isNew = (a) => !firstRun && !KNOWN.has(a.id);
+
   function rememberAll(list) {
     for (const a of list) {
       const m = MEM[a.id];
@@ -152,7 +171,7 @@
       if (h < 24) return { t: "Posted today", c: "new" };
       if (h < 72) return { t: `${Math.round(h / 24)}d old`, c: "new" };
     }
-    if (!firstRun && !m) return { t: "New to you", c: "new" };
+    if (isNew(a)) return { t: "New to you", c: "new" };
     if (S.saved.has(a.id)) return { t: "Saved", c: "save" };
     return null;
   }
@@ -178,7 +197,8 @@
 
   const SHOW = 60;
   const blank = () => ({ missed: 0, rooms: 0, gone: 0, plans: 0, passed: 0,
-                         eligible: 0, underpriced: 0, by: {}, overBudget: [] });
+                         fresh: 0, eligible: 0, underpriced: 0,
+                         by: {}, overBudget: [] });
   let counts = blank();
 
   function rank(all) {
@@ -223,6 +243,10 @@
         if (!S.onlyPlans) counts.plans++;
         continue;
       }
+      // Counted before the area filter, so the chip can offer a number for the
+      // whole city rather than for whichever district happens to be selected.
+      if (isNew(a)) counts.fresh++;
+      if (S.onlyNew && !isNew(a)) continue;
       // The saved view is a view of things you already chose, so it ignores
       // the area filter -- hiding a flat you saved because you have since
       // clicked a different district would look like losing it.
@@ -290,12 +314,15 @@
           <em>${num(counts.eligible)}</em>
           <span class="chev">›</span>
         </button>
+        ${counts.fresh ? `<button class="hoodchip fresh ${S.onlyNew ? "on" : ""}"
+          data-onlynew="1" title="Listings that were not in the data the last time you opened Casita"
+          >${ICON.svg("sparkle", 13)}New <em>${num(counts.fresh)}</em></button>` : ""}
         ${S.saved.size ? `<button class="hoodchip saved ${S.onlySaved ? "on" : ""}"
           data-saved="1">${ICON.svg("heart", 13)}Saved <em>${S.saved.size}</em></button>` : ""}
       </div>
       ${S.hoodOpen ? `<div class="hoodpanel">
         <div class="hoodrow">
-          <button class="hoodchip ${!S.district && !S.onlySaved && !S.onlyPlans ? "on" : ""}" data-district="">All of SF</button>
+          <button class="hoodchip ${!S.district && !S.onlySaved && !S.onlyPlans && !S.onlyNew ? "on" : ""}" data-district="">All of SF</button>
           ${ds.map((d) => `<button class="hoodchip ${d.name === S.district ? "on" : ""}"
             data-district="${esc(d.name)}">${ICON.svg(d.icon, 14)}${esc(d.name)}
             <em>${d.n}</em></button>`).join("")}
@@ -319,6 +346,19 @@
     const n = (S.list || []).length;
     if (!n) return "";
     const where = S.hood || S.district || "San Francisco";
+    /* Deliberately not "posted in the last week". Every source measures
+       freshness differently and two of them do not publish it at all, so a
+       date-based filter would quietly favour the sources that happen to say.
+       This is the one question the data can answer exactly: was it here last
+       time you looked. */
+    if (S.onlyNew) {
+      return `<div class="leadin">
+        <h2>New since you were last here</h2>
+        <p>${n} place${n === 1 ? "" : "s"} that were not in the data the last time you
+           opened Casita, wherever they sit in the ranking - so working through the list
+           once means you never have to work through it again.</p>
+      </div>`;
+    }
     if (S.onlyPlans) {
       return `<div class="leadin">
         <h2>Buildings worth a call</h2>
@@ -2004,7 +2044,7 @@
     const t = e.target.closest("[data-tab],[data-pick],[data-step],[data-act],[data-scroll]," +
       "[data-street],[data-open],[data-zoom],[data-recenter],[data-theme-set],[data-photo]," +
       "[data-walk],[data-hood],[data-district],[data-saved],[data-hoodtoggle],[data-sort]," +
-      "[data-plans],[data-opened],[data-unpass],[data-showpassed]," +
+      "[data-plans],[data-opened],[data-unpass],[data-showpassed],[data-onlynew]," +
       "#ownerbtn,#recheck,#deepbtn");
     if (!t) return;
     if (t.dataset.tab) return setTab(t.dataset.tab);
@@ -2068,7 +2108,13 @@
     }
     if (t.dataset.saved !== undefined) {
       S.onlySaved = !S.onlySaved;
-      if (S.onlySaved) S.onlyPlans = false;
+      if (S.onlySaved) { S.onlyPlans = false; S.onlyNew = false; }
+      applyHood();
+      return;
+    }
+    if (t.dataset.onlynew !== undefined) {
+      S.onlyNew = !S.onlyNew;
+      if (S.onlyNew) { S.onlySaved = false; S.onlyPlans = false; }
       applyHood();
       return;
     }

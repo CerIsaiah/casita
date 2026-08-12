@@ -228,6 +228,12 @@ a{color:inherit}
    a place - so it carries the heart and its own colour when active. */
 .hoodchip.saved.on{background:var(--good-bg);border-color:#D6EADF;color:var(--good)}
 .hoodchip.saved.on em{color:var(--good)}
+/* The one chip that is worth noticing before you have clicked anything, so it
+   carries a tint even while off - it is answering "is there anything I have
+   not already been through", which is the first question on a return visit. */
+.hoodchip.fresh{border-color:#E4D9C6;background:#FBF6EC}
+.hoodchip.fresh.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.hoodchip.fresh.on em,.hoodchip.fresh.on svg{color:#fff;opacity:.9}
 .hoodrow.sub{padding-left:2px}
 .hoodnote{font-size:11.5px;color:var(--ink-3);line-height:1.45;margin-top:1px}
 
