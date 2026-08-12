@@ -62,7 +62,12 @@ CACHE = HERE / "photo_review.json"
 
 MODEL = os.environ.get("CASITA_PHOTO_MODEL", "gemini-3.1-flash-lite")
 WORKERS = int(os.environ.get("CASITA_PHOTO_WORKERS", "32"))
-MAX_PHOTOS = 5
+# Eight rather than five. Redfin publishes a median of 19 photographs and
+# Craigslist posters often shoot every room, so five was frequently the living
+# room from four angles and the front door -- and the questions here are about
+# rooms this listing never showed. Also gives the not-the-flat filter more to
+# work with, since a floor plan and a logo can easily be two of five.
+MAX_PHOTOS = 8
 # Two independent levers on image cost, and both are set as low as the job can
 # stand, because the job is not a demanding one.
 #
@@ -221,13 +226,20 @@ def targets(data, cache):
 
 
 def review(client, gtypes, photos, pool):
-    # The five downloads for one flat are independent and each is a round trip
-    # to a CDN, so doing them in sequence spent most of the wall clock waiting.
-    # They share the outer pool's budget via `pool` rather than each worker
-    # spawning its own, which would multiply the thread count by five.
+    # The downloads for one flat are independent and each is a round trip to a
+    # CDN, so doing them in sequence spent most of the wall clock waiting. They
+    # share the outer pool's budget via `pool` rather than each worker spawning
+    # its own, which would multiply the thread count by MAX_PHOTOS.
     blobs = list(pool.map(fetch, photos))
-    parts = [gtypes.Part.from_bytes(data=b, mime_type="image/jpeg")
-             for b in blobs if b]
+    # Which originals survived the download, in order. The model is shown a
+    # dense list and answers in its own indices, so without this a single dead
+    # image silently shifts every answer after it: photo 3 fails, photo 4 is
+    # shown as index 3, and "index 3 is a floor plan" then deletes photo 3 from
+    # the gallery instead of photo 4. Nothing about that failure is visible --
+    # the shape of the reply is still perfectly valid.
+    kept = [i for i, b in enumerate(blobs) if b]
+    parts = [gtypes.Part.from_bytes(data=blobs[i], mime_type="image/jpeg")
+             for i in kept]
     if not parts:
         return None, 0
     parts.append(gtypes.Part.from_text(
@@ -244,7 +256,21 @@ def review(client, gtypes, photos, pool):
             media_resolution=RESOLUTION,
         ),
     )
-    return json.loads((resp.text or "").strip() or "null"), len(parts) - 1
+    r = json.loads((resp.text or "").strip() or "null")
+    return remap(r, kept), len(parts) - 1
+
+
+def remap(r, kept):
+    """Answers come back in the model's indices; put them back in ours."""
+    if not r:
+        return r
+    at = lambda i: kept[i] if isinstance(i, int) and 0 <= i < len(kept) else None
+    for k in ("light_photo", "view_photo", "condition_photo", "best_photo"):
+        if k in r:
+            r[k] = at(r[k])
+    r["not_the_unit"] = [j for j in (at(i) for i in (r.get("not_the_unit") or []))
+                         if j is not None]
+    return r
 
 
 def main():

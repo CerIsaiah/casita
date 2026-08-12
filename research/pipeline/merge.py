@@ -100,7 +100,7 @@ def from_apartments(it):
       "name": it.get("propertyName"), "addr": loc.get("fullAddress"),
       "hood": loc.get("neighborhood"),
       "lat": co.get("latitude"), "lon": co.get("longitude"),
-      "photos": (it.get("photos") or [])[:8],
+      "photos": (it.get("photos") or [])[:20],
       "rating": it.get("rating"), "fees": it.get("fees"),
       "posted": rel_to_epoch(it.get("lastUpdated")),
       # Fields the old adapter dropped on the floor. The phone number is the
@@ -141,7 +141,7 @@ def from_craigslist(it):
       "source": "Craigslist", "url": it.get("url"),
       "name": it.get("title") or it.get("label"), "addr": addr, "hood": None,
       "lat": it.get("latitude"), "lon": it.get("longitude"),
-      "photos": [p.get("url") if isinstance(p, dict) else p for p in (it.get("pics") or [])][:8],
+      "photos": [p.get("url") if isinstance(p, dict) else p for p in (it.get("pics") or [])][:20],
       "rating": None, "fees": None, "unit": norm_unit(it.get("title")),
       "rent": money(it.get("price")), "total": None,
       "beds": beds_of(it.get("bedrooms")), "baths": it.get("bathrooms"),
@@ -169,7 +169,7 @@ def from_zillow(it):
       "lon": it.get("longitude") or (it.get("latLong") or {}).get("longitude"),
       # The feed carries the whole carousel; zillow_api.gallery() unpacks it.
       # Falling back to imgSrc keeps older harvests readable.
-      "photos": (it.get("photos") or ([it["imgSrc"]] if it.get("imgSrc") else []))[:8],
+      "photos": (it.get("photos") or ([it["imgSrc"]] if it.get("imgSrc") else []))[:20],
       "rating": None, "fees": None, "unit": norm_unit(addr),
       "rent": money(it.get("unformattedPrice") or it.get("price")), "total": None,
       "beds": beds_of(it.get("beds")), "baths": it.get("baths"),
@@ -206,7 +206,7 @@ def from_zumper(it):
         return []
     addr = (it.get("address") or "").strip()
     photos = [f"https://img.zumpercdn.com/{i}/1280x960"
-              for i in (it.get("image_ids") or [])[:8]]
+              for i in (it.get("image_ids") or [])[:20]]
     url = it.get("url") or ""
     return [{
       "source": "Zumper",
@@ -268,7 +268,7 @@ def from_redfin(it):
     }]
 
 
-def redfin_photos(home, rx, cap=8):
+def redfin_photos(home, rx, cap=20):
     """Redfin publishes no image URLs, only the pieces to build them from.
 
     A rental id, and position ranges each carrying their own version stamp.
@@ -405,7 +405,7 @@ def run(path="listings_raw.json"):
           "rent_spread": [min(rents), max(rents)] if rents and max(rents) != min(rents) else None,
           "total": best.get("total"),
           "rating": next((r["rating"] for r in rows if r.get("rating")), None),
-          "photos": photos[:8],
+          "photos": photos[:20],
           "sources": [{"n": nm, "u": next(r.get("url") for r in rows if r["source"] == nm),
                         "c": sum(1 for r in rows if r["source"] == nm)}
                        for nm in sorted({r["source"] for r in rows})],

@@ -63,7 +63,13 @@ for a in apts:
       "rent": a["rent"], "act": [act_lo, act_hi], "est": est,
       "rating": a.get("rating"),
       "photo": (a.get("photos") or [None])[0],
-      "photos": (a.get("photos") or [])[:5],
+      # Five was thin everywhere and plainly wrong on Redfin, which publishes a
+      # median of 19 photographs and up to 91 -- the gallery was showing a
+      # fourteenth of the advert. A renter's first question about a flat is what
+      # it looks like, and five pictures, one of them usually the building from
+      # the pavement and another a floor plan, does not answer it. Fourteen
+      # costs about 2.4 MB across the whole payload.
+      "photos": (a.get("photos") or [])[:14],
       # True when the photo count is a limit of our scraping, not of the advert.
       #
       # Zillow's search feed returns exactly one preview image per row, and the
